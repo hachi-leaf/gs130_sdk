@@ -1,0 +1,15 @@
+# 编译产物
+build/
+out/
+*.o
+*.a
+*.so
+*.so.*
+
+# 临时/补丁/二进制
+start_first.patch
+solver.bin
+
+# 编辑器/系统
+*.swp
+.DS_Store

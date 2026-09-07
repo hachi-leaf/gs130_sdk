@@ -150,9 +150,9 @@ int main(int argc, char **argv)
     gs130_calibration_t cal;
     int has_cal = (gs130_get_calibration(dev, &cal) == GS130_OK);
 
-    /* IMU 时间戳 dump 埋点：/tmp/imu_ts.txt，每行 "timestamp_ns fsync" */
+    /* IMU timestamp dump hook: /tmp/imu_ts.txt, one "timestamp_ns fsync" per line */
     FILE *imu_dump = fopen("/tmp/imu_ts.txt", "w");
-    /* 相机帧 ts dump：/tmp/cam_ts.txt，每行 "timestamp_ns"（right 目） */
+    /* camera frame ts dump: /tmp/cam_ts.txt, one "timestamp_ns" per line (right camera) */
     FILE *cam_dump = fopen("/tmp/cam_ts.txt", "w");
     if(imu_dump) printf("IMU dump -> /tmp/imu_ts.txt\n");
 

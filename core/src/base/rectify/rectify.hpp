@@ -15,18 +15,18 @@
 namespace gs130 {
 namespace base {
 
-// 双目立体校正：自动寻找最大 Map + 缩放系数
-// 行为：
-// - 输出网格尺寸：
-//     - 使用源图尺寸（e.g.1088×1280）进行畸变矫正；
-//     - 以源图尺寸为画幅，输出网格中心点对齐畸变矫正光心，自动搜素最大画幅；
-//     - 针孔模型：输出与源尺寸相同的最大画幅网格（e.g.1088×1280）Map；
-//     - 鱼眼模型：某一边方向（e.g.width）与去畸变蝴蝶形区域边界相切后，对另一边进行 32；
-//     像素步进，直到这一边也碰边（e.g.h），输出扩张后的最大网格（e.g.1088x1312）。
-// - 畸变矫正：
-//     - 自动对齐左右图的 fx，fy
-//     - 应用矫正 Map 后，图片光心 = 图片中心
-//     - 进行矫正后的内外参修正，自动写回虚拟内外参到 *cal
+// Binocular stereo rectification: automatically find the maximum Map + scale factor
+// Behavior:
+// - Output grid size:
+//     - Undistort using the source image size (e.g. 1088x1280);
+//     - Use the source size as the frame, align output grid centers to the undistorted optical center, and auto-search the maximum frame;
+//     - Pinhole model: output a maximum-frame grid Map at the source size (e.g. 1088x1280);
+//     - Fisheye model: once one side (e.g. width) is tangent to the undistorted butterfly-region boundary, grow the other side in 32-pixel
+//       steps until that side also touches the border (e.g. h); output the expanded maximum grid (e.g. 1088x1312).
+// - Distortion correction:
+//     - Automatically align the left/right images' fx, fy
+//     - After applying the rectification Map, image optical center = image center
+//     - Correct the post-rectification intrinsics/extrinsics and automatically write the virtual intrinsics/extrinsics back to *cal
 
 Status stereo_rectify(StereoImuModel *cal,
                       uint32_t src_w, uint32_t src_h,

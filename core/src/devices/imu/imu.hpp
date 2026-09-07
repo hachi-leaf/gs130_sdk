@@ -14,10 +14,11 @@
 namespace gs130 {
 namespace imu {
 
-// 型号描述表：每个型号实现自己的一套操作，拿到的是已绑定总线与地址的 I2C 读写器。
-// 新增型号 = 写一个实现文件 + 定义一份 ModelDesc + 登记到 imu.cpp 的表里。
+// Model descriptor table: each model implements its own set of operations and is
+// handed an I2C accessor already bound to a bus and address.
+// Adding a model = write an implementation file + define a ModelDesc + register it in imu.cpp's table.
 struct ModelDesc {
-    uint8_t who_am_i_addr;    // 探测用寄存器（须位于芯片默认 bank）
+    uint8_t who_am_i_addr;    // probe register (must be in the chip's default bank)
     uint8_t who_am_i_val;
     const char  *name;
     const char  *info;
@@ -27,32 +28,33 @@ struct ModelDesc {
     void   (*stop)  (base::I2cDevice &bus);
     Status (*read)  (base::I2cDevice &bus, ImuHwFifo16Packet *out,
                      size_t cap, size_t *n_out);
-    bool   (*full)(base::I2cDevice &bus);   // 读 INT_STATUS 检查 FIFO 满
-    void   (*deinit)(base::I2cDevice &bus);   // 下电，由析构调用
+    bool   (*full)(base::I2cDevice &bus);   // read INT_STATUS to check FIFO full
+    void   (*deinit)(base::I2cDevice &bus);   // power down, called from the destructor
 };
 
-// 构造时开总线并按 WHO_AM_I 匹配型号，持有该 I2C 设备句柄（析构即关闭）。
-// 各方法原地转发到型号实现。
+// The constructor opens the bus and matches the model by WHO_AM_I; the I2C device
+// handle is held for the object's lifetime (closed on destruction).
+// Each method forwards directly to the model implementation.
 class Imu {
 public:
     Imu(uint8_t bus, uint8_t addr);
     ~Imu();
 
-    // 禁止 copy
+    // non-copyable
     Imu(const Imu &)            = delete;
     Imu &operator=(const Imu &) = delete;
 
-    // 布尔转换语义：true 已绑定型号；false 探测失败
+    // bool conversion: true = a model is bound; false = probe failed
     explicit operator bool() const { return desc_ != nullptr; }
 
     Status init(const ImuConfig &cfg);
     Status start();
     void   stop();
 
-    // 读 FIFO；*n_out 返回实际包数
+    // read FIFO; *n_out returns the actual packet count
     Status read(ImuHwFifo16Packet *out, size_t cap, size_t *n_out);
 
-    // 硬件 FIFO 是否已满（溢出丢包）
+    // whether the hardware FIFO is full (overflow drops packets)
     bool full();
 
     const char *name() const;

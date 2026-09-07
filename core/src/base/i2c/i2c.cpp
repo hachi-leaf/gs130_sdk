@@ -28,8 +28,8 @@ I2cDevice::I2cDevice(I2cDevice &&other) noexcept
 I2cDevice &I2cDevice::operator=(I2cDevice &&other) noexcept
 {
     if(this != &other){
-        close(); // 先释放本对象旧 fd
-        fd_ = other.fd_; // 接管对方 fd
+        close(); // release this object's old fd first
+        fd_ = other.fd_; // take over the other's fd
         other.fd_ = -1;
     }
     return *this;
@@ -41,7 +41,7 @@ I2cDevice::I2cDevice(uint8_t bus, uint8_t addr)
     snprintf(path, sizeof(path), "/dev/i2c-%u", bus);
 
     fd_ = ::open(path, O_RDWR);
-    if(fd_ < 0)return ; // 失败：对象无效（!*this）
+    if(fd_ < 0)return ; // failure: object invalid (!*this)
 
     if(::ioctl(fd_, I2C_SLAVE_FORCE, addr) < 0){
         ::close(fd_);

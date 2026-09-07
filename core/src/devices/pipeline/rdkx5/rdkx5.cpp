@@ -2,8 +2,8 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  *
- * RDK X5 平台骨架：Pipeline 方法桩，待逐步填充。
- * 资源直接放在 Impl，调用节点时逐个传参，无共享上下文。
+ * RDK X5 platform skeleton: Pipeline method stubs, to be filled in step by step.
+ * Resources live directly in Impl; passed one by one when calling nodes, no shared context.
  */
 #include "devices/pipeline/rdkx5/rdkx5.h"
 
@@ -27,8 +27,8 @@ namespace {
 constexpr uint16_t kChipIdReg = 0x3107;
 constexpr uint16_t kChipId    = 0x0132;
 
-// 帧时间戳（ns）：优先用 trig_tv（LPWM 上升沿 = 曝光触发时刻），
-// 拿不到再退回 timestamps / tv。
+// Frame timestamp (ns): prefer trig_tv (LPWM rising edge = exposure trigger time),
+// fall back to timestamps / tv when unavailable.
 uint64_t frame_ts_ns(const hbn_frame_info_t &info)
 {
     if(info.trig_tv.tv_sec != 0 || info.trig_tv.tv_usec != 0)
@@ -43,10 +43,10 @@ uint64_t frame_ts_ns(const hbn_frame_info_t &info)
 } // namespace
 
 struct Pipeline::Impl {
-    bool probed     = false;   // 两路 sensor 探测成功
-    bool inited = false;   // 已建流
+    bool probed     = false;   // both sensors probed successfully
+    bool inited = false;   // stream built
 
-    // 单路相机资源（调用节点时逐个传入）
+    // Per-camera resources (passed one by one when calling nodes)
     struct CamHw {
         camera_handle_t    cam_fd  = 0;
         hbn_vnode_handle_t vin = 0, isp = 0, vse = 0, gdc = 0;
@@ -58,7 +58,7 @@ struct Pipeline::Impl {
         uint8_t i2c_addr = 0;
     } cam[static_cast<size_t>(CamIndex::Num)];
 
-    // 几何参数
+    // Geometry parameters
     uint32_t input_w = 0, input_h = 0, output_w = 0, output_h = 0;
     uint32_t mid_w = 0, mid_h = 0, vse_chn = 0;
     int install_angle = 0;
@@ -69,11 +69,11 @@ Pipeline::Pipeline(
     const uint8_t *bus_list, size_t bus_num)
     : impl_(std::make_unique<Impl>())
 {
-    // 遍历 bus_list：读 chip id 确认该总线 + 地址上是 SC132GS
+    // Iterate bus_list: read chip id to confirm an SC132GS on that bus + address
     for(size_t i = 0; i < bus_num; ++i){
         const uint8_t bus = bus_list[i];
 
-        // 右目
+        // Right camera
         if(impl_->cam[static_cast<size_t>(CamIndex::Right)].i2c_addr == 0){
             base::I2cDevice dev(bus, right_addr);
             uint16_t id = 0;
@@ -83,7 +83,7 @@ Pipeline::Pipeline(
             }
             dev.close();
         }
-        // 左目
+        // Left camera
         if(impl_->cam[static_cast<size_t>(CamIndex::Left)].i2c_addr == 0){
             base::I2cDevice dev(bus, left_addr);
             uint16_t id = 0;
@@ -111,7 +111,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
     if(!impl_->probed)return Status::NotFound;
     if(impl_->inited)return Status::ParamError;
 
-    // 几何参数
+    // Geometry parameters
     impl_->input_w = cfg.sensor_width;
     impl_->input_h = cfg.sensor_height;
     impl_->output_w = cfg.output_width;
@@ -121,7 +121,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
         if(cfg.sensor_width != cfg.output_width || cfg.sensor_height != cfg.output_height)
             return Status::ParamError;
 
-    // 确定 mipi_rx 和 reset_gpio
+    // Determine mipi_rx and reset_gpio
     for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
         const int bus = impl_->cam[i].i2c_bus;
         if(bus < 0 || bus >= 32 || cfg.bus_mipi_rx[bus] == 0xFF)return Status::ParamError;
@@ -130,8 +130,8 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
         impl_->cam[i].reset_gpio = cfg.bus_reset_gpio[bus];
     }
 
-    // 建流
-    // Camera 节点
+    // Build the stream
+    // Camera node
     for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
         int ret = camera_open(
             &impl_->cam[i].cam_fd,
@@ -146,7 +146,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
         }
     }
 
-    // VIN 节点
+    // VIN node
     for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
         int ret = vin_open(
             &impl_->cam[i].vin,
@@ -158,7 +158,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
         }
     }
 
-    // ISP 节点
+    // ISP node
     for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
         int ret = isp_open(
             &impl_->cam[i].isp,
@@ -169,26 +169,26 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
         }
     }
 
-    // GDC 节点
-    // Rect：rectify + 旋转；
-    // Resize + 安装旋转：纯旋转；
-    // Raw：跳过 GDC
+    // GDC node
+    // Rect: rectify + rotation;
+    // Resize + install rotation: pure rotation;
+    // Raw: skip GDC
     if(cfg.mode != OutputMode::Raw){
         if(cal == nullptr)return Status::ParamError;
 
         impl_->install_angle = ((cal->install_angle % 360) + 360) % 360;
         if(impl_->install_angle % 90 != 0) return Status::ParamError;
 
-        // 处理 Rect 和 旋转 Resize 场景
+        // Handle Rect and rotated Resize cases
         if(cfg.mode == OutputMode::Rect || impl_->install_angle != 0){
-            // 旋转宽高
+            // Rotated width/height
             const bool swap = (impl_->install_angle == 90 || impl_->install_angle == 270);
             const uint32_t src_w = swap ? impl_->input_h : impl_->input_w;
             const uint32_t src_h = swap ? impl_->input_w : impl_->input_h;
 
-            // 生成 GDC Map
+            // Generate GDC Map
             std::vector<RemapPoint> map[static_cast<size_t>(CamIndex::Num)];
-            // 双目畸变立体矫正
+            // Stereo distortion rectification for both cameras
             if(cfg.mode == OutputMode::Rect){
                 Status st = base::stereo_rectify(cal, src_w, src_h,
                                                  &impl_->mid_w, &impl_->mid_h,
@@ -199,12 +199,12 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
                     return Status::Unsupported;
                 }
             }
-            // 旋转矫正
+            // Rotation-only correction
             else{
                 impl_->mid_w = src_w;
                 impl_->mid_h = src_h;
 
-                // 生成恒等 Map
+                // Generate identity Map
                 const uint32_t n = impl_->mid_w * impl_->mid_h;
                 for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
                     map[i].resize(n);
@@ -215,7 +215,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
                 }
             }
 
-            // 每路 gdc_open（map[0]=Right，map[1]=Left）
+            // gdc_open per camera (map[0]=Right, map[1]=Left)
             for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
                 int ret = gdc_open(
                     &impl_->cam[i].gdc, &impl_->cam[i].gdc_bin,
@@ -227,28 +227,28 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
                 }
             }
         }
-        // 不过 GDC：mid 直接取 sensor 尺寸（VSE 的输入）
+        // Not through GDC: mid takes the sensor size directly (VSE input)
         else{
             impl_->mid_w = impl_->input_w;
             impl_->mid_h = impl_->input_h;
         }
     }
 
-    // VSE 节点
+    // VSE node
     if(cfg.mode != OutputMode::Raw){
-        // ROI 整除检查（防整数除法截断）
+        // ROI divisibility check (guard against integer-division truncation)
         if(roi_ratio_exact(impl_->mid_w, impl_->mid_h,
                            impl_->output_w, impl_->output_h) != 0){
             deinit();
             return Status::Unsupported;
         }
 
-        // 等比取景 ROI + 升/降采样通道（0=降采样，5=升采样）
+        // Aspect-ratio-preserving ROI + up/down-sampling channel (0=down, 5=up)
         const common_rect_t roi = aspect_roi(impl_->mid_w, impl_->mid_h,
                                              impl_->output_w, impl_->output_h);
         impl_->vse_chn = (impl_->output_w > roi.w || impl_->output_h > roi.h) ? 5 : 0;
 
-        // 每路 vse_open
+        // vse_open per camera
         for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
             int ret = vse_open(
                 &impl_->cam[i].vse, impl_->mid_w, impl_->mid_h,
@@ -259,7 +259,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
             }
         }
 
-        // 内参写回：VSE 等比裁剪 + 缩放（mid 坐标系 → output 坐标系）
+        // Write back intrinsics: VSE aspect crop + scale (mid coords -> output coords)
         const double sfx = static_cast<double>(impl_->output_w) / roi.w;
         const double sfy = static_cast<double>(impl_->output_h) / roi.h;
         for(CameraIntrinsics *k : {&cal->cam_left, &cal->cam_right}){
@@ -272,7 +272,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
         }
     }
 
-    // 绑定节点并确定输出位置
+    // Bind nodes and determine the output position
     for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
         int ret = vflow_build(
             &impl_->cam[i].vflow, impl_->cam[i].cam_fd,
@@ -300,7 +300,7 @@ void Pipeline::deinit()
                      impl_->cam[i].vin, impl_->cam[i].isp,
                      impl_->cam[i].vse, impl_->cam[i].gdc,
                      &impl_->cam[i].gdc_bin, impl_->cam[i].reset_gpio);
-        // teardown 是值传，句柄不会写回，这里清掉
+        // teardown passes by value so handles are not written back; clear them here
         impl_->cam[i].cam_fd = 0;
         impl_->cam[i].vin = impl_->cam[i].isp = impl_->cam[i].vse = impl_->cam[i].gdc = 0;
         impl_->cam[i].vflow = 0;
@@ -308,7 +308,7 @@ void Pipeline::deinit()
         impl_->cam[i].output_chn  = 0;
     }
 
-    // 再上电：vflow_destroy 已下电，恢复 sensor 到常规可探测态
+    // Power on again: vflow_destroy powered off; restore sensors to normal detectable state
     for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
         if(impl_->cam[i].reset_gpio >= 0)
             sensor_power(impl_->cam[i].reset_gpio, 1);
@@ -365,13 +365,13 @@ Status Pipeline::get_frame(CamIndex idx,
     if(hbn_vnode_getframe(c.output_node, c.output_chn, timeout_ms, &img) != 0)
         return Status::Timeout;
 
-    // 检测宽高，不符报错
+    // Check width/height; report error on mismatch
     if((uint32_t)img.buffer.width != width || (uint32_t)img.buffer.height != height){
         hbn_vnode_releaseframe(c.output_node, c.output_chn, &img);
         return Status::ParamError;
     }
 
-    // 逐行按各自 stride 拷贝
+    // Copy row by row using each plane's stride
     for(uint32_t r = 0; r < height; ++r)
         memcpy(y + (size_t)r * y_stride,
                img.buffer.virt_addr[0] + (size_t)r * img.buffer.stride, width);

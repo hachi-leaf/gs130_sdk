@@ -14,26 +14,27 @@
 namespace gs130 {
 namespace pipeline {
 
-// 双目 pipeline。平台实现在编译期由 -D 宏选定（各平台 SDK 头文件互不共存），
-// 平台私有状态藏在 Impl 内，HBN 等 C 头文件不会泄漏到本头文件。
+// Stereo pipeline. The platform implementation is selected at compile time via a -D
+// macro (platform SDK headers cannot coexist); platform-private state hides inside
+// Impl, so C headers such as HBN never leak into this header.
 class Pipeline {
 public:
     Pipeline(uint8_t left_addr, uint8_t right_addr,
              const uint8_t *bus_list, size_t bus_num);
-    ~Pipeline();   // 调 deinit 释放硬件
+    ~Pipeline();   // calls deinit to release hardware
 
     Pipeline(const Pipeline &)            = delete;
     Pipeline &operator=(const Pipeline &) = delete;
 
-    // 两路 sensor 探测成功
+    // both sensors probed successfully
     explicit operator bool() const;
 
     Status init(const PipelineConfig &cfg, StereoImuModel *cal);
-    void   deinit();   // 释放 init 占用的硬件（析构兜底调用）
-    Status start(CamIndex first);   // 先开 first 那一路，再开另一路
+    void   deinit();   // release hardware acquired by init (also called from the destructor as a fallback)
+    Status start(CamIndex first);   // start the 'first' channel, then the other
     void   stop();
 
-    // 取一帧到用户缓冲：逐行按 y_stride / uv_stride 拷贝；宽高不符报 ParamError
+    // fetch one frame into user buffers: copy row by row using y_stride / uv_stride; width/height mismatch -> ParamError
     Status get_frame(CamIndex idx,
                      uint8_t *y, uint8_t *uv,
                      uint32_t width, uint32_t height,

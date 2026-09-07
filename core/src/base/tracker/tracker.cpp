@@ -22,7 +22,7 @@ void TimestampTracker::update_master_timestamp_ns(
 
 }
 
-// 无锁；由调用方（公开方法）持锁
+// Lock-free; the caller (a public method) holds the lock
 uint64_t TimestampTracker::align_master_phase(
     uint64_t predicted) const
 {
@@ -41,8 +41,8 @@ void TimestampTracker::feed_slave_sample(
     const bool fsync = (delta_time_ns != nullptr);
 
     switch(slave_.phase){
-    case Phase::WaitFirstAnchor: // 等待首个锚点
-        // 首个锚点分支
+    case Phase::WaitFirstAnchor: // wait for the first anchor
+        // first-anchor branch
         if(fsync && !slave_.has_first_anchor){
             slave_.has_first_anchor = true;
             slave_.first_delta_time_ns = *delta_time_ns;
@@ -51,45 +51,45 @@ void TimestampTracker::feed_slave_sample(
         return ;
     
     case Phase::WaitTwoMaster:
-        // 等待两个 Master 时钟到达
+        // wait for two Master clocks to arrive
         if(master_.first_ns != 0 && master_.first_ns < master_.last_ns)
             slave_.phase = Phase::WaitKeyPoint;
 
         [[fallthrough]]
 
-    case Phase::WaitKeyPoint: // 两个 Master 后的关键帧
-        // Phase::WaitTwoMaster + Phase::WaitKeyPoint 条件均满足
+    case Phase::WaitKeyPoint: // key frame after two Masters
+        // both Phase::WaitTwoMaster and Phase::WaitKeyPoint conditions are met
         if(fsync && slave_.phase == Phase::WaitKeyPoint){
             slave_.phase = Phase::Tracking;
             slave_.last_anchor_edge_timestamp_ns = master_.first_ns;
             slave_.last_anchor_sample_timestamp_ns = master_.first_ns + slave_.first_delta_time_ns;
         }
 
-        // 等待阶段计数
+        // count during the wait phases
         if(fsync)slave_.anchor_count++;
         slave_.sample_count++;
 
-        // 拦截非锚点帧
+        // intercept non-anchor frames
         if(slave_.phase != Phase::Tracking)return;
-        fprintf(stderr, "[dbg] 首次锚定: anchor_count=%u first_ns=%llu\n",
+        fprintf(stderr, "[dbg] first anchor: anchor_count=%u first_ns=%llu\n",
                 slave_.anchor_count, (unsigned long long)master_.first_ns);
 
-        // 锚点帧，刚好可以共享 Tracking 阶段计算
+        // the anchor frame happens to share the Tracking-phase computation
         [[fallthrough]]
 
     case Phase::Tracking:
-        // 锚点帧计算
+        // anchor-frame computation
         if(fsync){
             uint64_t anchor_edge_timestamp_ns = 
                 slave_.last_anchor_edge_timestamp_ns + slave_.anchor_count * master_cycle_ns_;
             anchor_edge_timestamp_ns = align_master_phase(anchor_edge_timestamp_ns);
             uint64_t anchor_sample_timestamp_ns = anchor_edge_timestamp_ns + *delta_time_ns;
 
-            // 计算从时钟间隔
+            // compute the slave-clock interval
             uint64_t slave_gap_ns = 
                 (anchor_sample_timestamp_ns - slave_.last_anchor_sample_timestamp_ns) / slave_.sample_count;
 
-            // 推数据到ready：普通样本按 gap 步进，最后一个是当前锚点
+            // push into ready_: ordinary samples step by gap; the last one is the current anchor
             for(uint32_t j = 1; j <= slave_.sample_count; j++)
                 ready_.push_back(slave_.last_anchor_sample_timestamp_ns + slave_gap_ns * j);
 
@@ -99,7 +99,7 @@ void TimestampTracker::feed_slave_sample(
             slave_.sample_count = 0;
         }
 
-        // 当前样本（含 FSYNC）算进新周期
+        // count the current sample (the one with FSYNC) into the new period
         slave_.sample_count++;
         slave_.anchor_count = 1;
         return ;
@@ -127,7 +127,7 @@ std::vector<uint64_t> TimestampTracker::take_ready()
     std::lock_guard<std::mutex> lock(*mtx_);
     std::vector<uint64_t> out;
     out.reserve(ready_.size());
-    // 新到旧：back -> front，首元素 = 当前锚点样本
+    // newest to oldest: back -> front; first element = current anchor sample
     for(auto it = ready_.rbegin(); it != ready_.rend(); ++it)
         out.push_back(*it);
     ready_.clear();

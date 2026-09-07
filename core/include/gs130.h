@@ -22,16 +22,16 @@ typedef enum gs130_err_e{
     GS130_TIMEOUT,
 }gs130_err_t;
 
-/* FIFO 队列模式 */
+/* FIFO queue mode */
 typedef enum gs130_fifo_mode_e{
-    GS130_FIFO_DROP_NEW,   /* 满则丢弃新数据 */
-    GS130_FIFO_DROP_OLD,   /* 满则覆盖最旧数据 */
+    GS130_FIFO_DROP_NEW,   /* drop the newest data when full */
+    GS130_FIFO_DROP_OLD,   /* overwrite the oldest data when full */
 }gs130_fifo_mode_t;
 
-/* FIFO 队列配置 */
+/* FIFO queue configuration */
 typedef struct gs130_fifo_config_s{
-    size_t depth;              /* 队列深度，≥2 */
-    gs130_fifo_mode_t mode;   /* 满时策略 */
+    size_t depth;              /* queue depth, >= 2 */
+    gs130_fifo_mode_t mode;   /* policy when full */
 }gs130_fifo_config_t;
 
 /* ==================== Device Config ==================== */
@@ -56,7 +56,7 @@ typedef struct {
     uint32_t sensor_width, sensor_height;
     uint32_t fps;
     uint32_t line_length, frame_length;
-    const char *tuning_file;   /* ISP tuning，nullptr = 不加载 */
+    const char *tuning_file;   /* ISP tuning file, nullptr = do not load */
     
     uint32_t output_width, output_height;
     gs130_camera_mode_t mode;
@@ -64,7 +64,7 @@ typedef struct {
     uint8_t bus_mipi_rx[32];
     int bus_reset_gpio[32];
 
-    gs130_camera_index_t fsync_camera;   /* IMU FSYNC 脚绑定的目 */
+    gs130_camera_index_t fsync_camera;   /* camera the IMU FSYNC pin is bound to */
 }gs130_camera_config_t;
 
 typedef struct gs130_imu_config_s{
@@ -74,8 +74,8 @@ typedef struct gs130_imu_config_s{
     uint32_t odr_hz;
     uint16_t accel_fsr_g;
     uint16_t gyro_fsr_dps;
-    uint8_t accel_bw_sel;   /* UI 滤波档位 0..7，对应带宽见 info() */
-    uint8_t gyro_bw_sel;    /* 0xFF = 未设置 */
+    uint8_t accel_bw_sel;   /* UI filter level 0..7, see info() for bandwidth */
+    uint8_t gyro_bw_sel;    /* 0xFF = not set */
 }gs130_imu_config_t;
 
 typedef struct gs130_eeprom_config_s{
@@ -89,7 +89,7 @@ typedef struct gs130_config_s{
     gs130_imu_config_t imu_config;
     gs130_eeprom_config_t eeprom_config;
 
-    /* FIFO 队列：相机帧 / IMU 包分开设置 */
+    /* FIFO queues: camera frames and IMU packets configured separately */
     gs130_fifo_config_t camera_fifo;
     gs130_fifo_config_t imu_fifo;
 }gs130_config_t;
@@ -137,8 +137,8 @@ typedef struct gs130_imu_packet_s{
     float accel[3]; /* m/s² */
     float gyro[3]; /* rad/s */
     float temp; /* °C */
-    bool  is_fsync; /* 本包为 FSYNC 同步包 */
-    uint64_t timestamp_ns; /* 修正后的绝对时间戳（与相机时钟对齐） */
+    bool  is_fsync; /* this packet is an FSYNC sync packet */
+    uint64_t timestamp_ns; /* corrected absolute timestamp (aligned to the camera clock) */
 }gs130_imu_packet_t;
 
 size_t gs130_available_imu(
@@ -174,7 +174,7 @@ typedef struct gs130_imu_intrinsics_s{
     double gyro_random_walk;     /* rad/s²/√Hz */
 }gs130_imu_intrinsics_t;
 
-/* 外参为该传感器坐标系 → 公共参考坐标系的变换：p_ref = R*p_sensor + T */
+/* Extrinsics are transforms from each sensor frame to the common reference frame: p_ref = R*p_sensor + T */
 typedef struct {
     gs130_imu_intrinsics_t imu;
     gs130_camera_intrinsics_t camera_right;

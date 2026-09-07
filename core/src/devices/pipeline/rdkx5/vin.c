@@ -2,7 +2,7 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  *
- * vin 节点：CIM + LPWM（立体同步 + IMU FSYNC）。
+ * vin node: CIM + LPWM (stereo sync + IMU FSYNC).
  */
 #include "rdkx5.h"
 
@@ -11,14 +11,14 @@
 int vin_open(hbn_vnode_handle_t *vin, int mipi_rx,
              uint32_t width, uint32_t height, uint32_t fps)
 {
-    const uint32_t period_us = 1000000U / fps;   /* LPWM 周期，单位 us */
+    const uint32_t period_us = 1000000U / fps;   /* LPWM period, in us */
 
     vin_node_attr_t node = {
         .cim_attr = {
             .mipi_rx = (uint32_t)mipi_rx,
             .vc_index = 0,
             .ipi_channel = 1,
-            .cim_isp_flyby = 0,   /* VIN->ISP 走 offline(DDR)，多路必须如此 */
+            .cim_isp_flyby = 0,   /* VIN->ISP goes through offline (DDR); mandatory for multi-channel */
             .func = {
                 .enable_frame_id = 1,
                 .set_init_frame_id = 0,
@@ -54,7 +54,7 @@ int vin_open(hbn_vnode_handle_t *vin, int mipi_rx,
         .ochn_attr_type = VIN_BASIC_ATTR,
         .vin_basic_attr = {
             .format = 0x2B,
-            .wstride = width * 2,   /* RAW10 每像素 2 字节 */
+            .wstride = width * 2,   /* RAW10: 2 bytes per pixel */
         },
     };
 

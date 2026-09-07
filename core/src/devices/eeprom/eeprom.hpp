@@ -13,29 +13,32 @@
 namespace gs130 {
 namespace eeprom {
 
-// 型号描述表：每个型号实现自己的探测与解析，拿到的是已绑定总线与地址的 I2C 读写器。
-// 新增型号 = 写一个实现文件 + 定义一份 ModelDesc + 登记到 eeprom.cpp 的表里。
+// Model descriptor table: each model implements its own probe and parsing and is
+// handed an I2C accessor already bound to a bus and address.
+// Adding a model = write an implementation file + define a ModelDesc + register it in eeprom.cpp's table.
 struct ModelDesc {
     const char *name;
     const char *info;
 
-    // 识别本型号布局；header 长度、校验和算法因型号而异，故由型号自己判定
+    // recognize this model's layout; header length and checksum algorithm vary
+    // per model, so the model itself decides
     bool   (*probe)(base::I2cDevice &bus);
     Status (*read) (base::I2cDevice &bus, StereoImuModel *out);
 };
 
-// 构造时开总线并逐个型号探测，持有该 I2C 设备句柄（析构即关闭）。
-// 只读器件，无需下电或复位，故没有 deinit。
+// The constructor opens the bus and probes each model in turn; the I2C device
+// handle is held for the object's lifetime (closed on destruction).
+// Read-only device: no power-down or reset needed, so there is no deinit.
 class Eeprom {
 public:
     Eeprom(uint8_t bus, uint8_t addr);
     ~Eeprom() = default;
 
-    // 禁止 copy
+    // non-copyable
     Eeprom(const Eeprom &)            = delete;
     Eeprom &operator=(const Eeprom &) = delete;
 
-    // 布尔转换语义：true 已绑定型号；false 探测失败
+    // bool conversion: true = a model is bound; false = probe failed
     explicit operator bool() const { return desc_ != nullptr; }
 
     Status read(StereoImuModel *out);

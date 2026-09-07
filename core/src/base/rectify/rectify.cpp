@@ -15,8 +15,8 @@ namespace gs130 {
 namespace base {
 namespace {
 
-constexpr int    kProbeWidth   = 128;    // 搜索期代理宽度，正确性与分辨率无关
-constexpr int    kGridStep     = 32;     // Fisheye 扩画幅步进
+constexpr int    kProbeWidth   = 128;    // proxy width for the search phase; correctness is resolution-independent
+constexpr int    kGridStep     = 32;     // Fisheye frame-expansion step
 constexpr double kCoarseBegin  = 0.10;
 constexpr double kCoarseEnd    = 2.00;
 constexpr double kCoarseStep   = 0.05;
@@ -27,9 +27,10 @@ int dist_count(DistModel m)
     return (m == DistModel::Fisheye) ? 4 : 8;
 }
 
-// 检查映射四条边界的采样坐标是否都落在源图内。
-// 上界用 src-1：双线性插值需要 +1 邻居像素。
-// 只查边界即可：中心对称单调畸变的采样范围由边界包围，内部点不会先越界。
+// Check that the sampled coordinates along all four mapped borders fall inside the source image.
+// Upper bound uses src-1: bilinear interpolation needs the +1 neighbor pixel.
+// Checking the borders alone suffices: with center-symmetric monotone distortion the sample
+// range is enclosed by the borders, so interior points never go out of bounds first.
 bool border_in_source(const cv::Mat &mx, const cv::Mat &my, int src_w, int src_h)
 {
     const int   w = mx.cols, h = mx.rows;
@@ -55,11 +56,12 @@ bool border_in_source(const cv::Mat &mx, const cv::Mat &my, int src_w, int src_h
     return true;
 }
 
-// 立体校正 + 主点居中。fisheye 用 fov_scale，pinhole 用 alpha=0 后手工缩放焦距。
+// Stereo rectification + principal-point centering. Fisheye uses fov_scale; pinhole uses alpha=0 followed by manual focal scaling.
 //
-// new_image_size 必须与 out_size 分开传：探测期固定用 src_size，只有最终生成才用
-// out_size。否则扩画幅时焦距会随尺寸等比放大、角度覆盖不变，黑边检查永远通过，
-// 扩张循环不会终止。
+// new_image_size must be passed separately from out_size: probing always uses src_size and only the
+// final generation uses out_size. Otherwise, when expanding the frame, the focal length would scale
+// with the size, angular coverage would stay unchanged, the black-border check would always pass,
+// and the expansion loop would never terminate.
 void stereo_rectify(DistModel model,
                     const cv::Mat &lK, const cv::Mat &lD,
                     const cv::Mat &rK, const cv::Mat &rD,
@@ -79,7 +81,7 @@ void stereo_rectify(DistModel model,
         cv::stereoRectify(lK, lD, rK, rD, src_size, R_r2l, t_r2l,
                           rect_lR, rect_rR, proj_lP, proj_rP, Q,
                           cv::CALIB_ZERO_DISPARITY, 0.0, new_image_size);
-        // 针孔没有 fov_scale 参数，对 P 的焦距等效缩放
+        // pinhole has no fov_scale parameter; equivalently scale the focal length in P
         proj_lP.at<double>(0, 0) /= fov_scale;
         proj_lP.at<double>(1, 1) /= fov_scale;
         proj_rP.at<double>(0, 0) /= fov_scale;
@@ -102,7 +104,7 @@ void undistort_rectify_map(DistModel model,
         cv::initUndistortRectifyMap(K, D, rect_R, P, size, CV_32FC1, mx, my);
 }
 
-// 单次 fov_scale 尝试：校正 → 代理映射 → 黑边检查
+// Single fov_scale attempt: rectify -> proxy map -> black-border check
 bool try_fov_scale(DistModel model,
                    const cv::Mat &lK, const cv::Mat &lD,
                    const cv::Mat &rK, const cv::Mat &rD,
@@ -115,7 +117,7 @@ bool try_fov_scale(DistModel model,
                    src_size, out_size, src_size, fov_scale,
                    rect_lR, rect_rR, proj_lP, proj_rP);
 
-    // P 随代理尺寸等比缩放
+    // Scale P proportionally with the proxy size
     const double sx = static_cast<double>(probe_size.width) / out_size.width;
     const double sy = static_cast<double>(probe_size.height) / out_size.height;
     cv::Mat Pl = proj_lP.clone(), Pr = proj_rP.clone();
@@ -143,7 +145,7 @@ cv::Size probe_of(cv::Size out_size)
     return cv::Size(kProbeWidth, h);
 }
 
-// 搜索最大的无黑边 fov_scale：先粗搜再在其邻域细搜
+// Find the largest black-border-free fov_scale: coarse search first, then fine search in its neighborhood
 double find_best_fov_scale(DistModel model,
                            const cv::Mat &lK, const cv::Mat &lD,
                            const cv::Mat &rK, const cv::Mat &rD,
@@ -171,7 +173,7 @@ double find_best_fov_scale(DistModel model,
     return best;
 }
 
-// 右目在左目坐标系下的相对位姿：R_r2l = lR·rRᵀ，t_r2l = lT - R_r2l·rT
+// Right-camera pose in the left-camera frame: R_r2l = lR·rRᵀ, t_r2l = lT - R_r2l·rT
 void relative_pose(const double *lR, const double *lT,
                    const double *rR, const double *rT,
                    cv::Mat &R_r2l, cv::Mat &t_r2l)
@@ -197,7 +199,7 @@ cv::Mat d_mat(const CameraIntrinsics &c, DistModel m)
                    const_cast<double *>(c.dist_coeffs)).clone();
 }
 
-// 统一左右焦距为 min(fx,fy)，主点移到输出中心
+// Unify the left/right focal lengths to min(fx,fy) and move the principal point to the output center
 void align_focal_and_center(cv::Mat &proj_lP, cv::Mat &proj_rP, int w, int h)
 {
     const double f = std::min(proj_lP.at<double>(0, 0), proj_lP.at<double>(1, 1));
@@ -222,8 +224,8 @@ void fill_map(std::vector<RemapPoint> *dst,
     }
 }
 
-// 虚拟标定写回：无畸变、共焦、主点居中，R = 原始 R × rect_Rᵀ，T 原样保留。
-// orig_R 与目标 R 可能是同一块内存，故先 clone 原始 R 再写回。
+// Virtual calibration write-back: zero distortion, shared focal, centered principal point, R = original R × rect_Rᵀ, T kept unchanged.
+// orig_R and the target R may alias the same memory, so clone the original R before writing back.
 void write_virtual(CameraIntrinsics *k, double *R,
                    const double *orig_R,
                    const cv::Mat &P, const cv::Mat &rect_R)
@@ -261,7 +263,7 @@ Status stereo_rectify(StereoImuModel *cal,
 
     const DistModel model = cal->cam_left.dist_model;
     if(cal->cam_right.dist_model != model)
-        return Status::ParamError;   // 左右畸变模型不一致
+        return Status::ParamError;   // left/right distortion models differ
 
     const cv::Mat lK = k_mat(cal->cam_left),  lD = d_mat(cal->cam_left, model);
     const cv::Mat rK = k_mat(cal->cam_right), rD = d_mat(cal->cam_right, model);
@@ -273,13 +275,13 @@ Status stereo_rectify(StereoImuModel *cal,
     const cv::Size src_size(static_cast<int>(src_w), static_cast<int>(src_h));
     cv::Size out_size(static_cast<int>(src_w), static_cast<int>(src_h));
 
-    // Pinhole 的 alpha=0 自带 zoom+shift 取最大取景，无需搜索与扩画幅
+    // Pinhole alpha=0 already applies zoom+shift for maximum framing; no search or frame expansion needed
     double fov_scale = 1.0;
     if(model == DistModel::Fisheye){
         fov_scale = find_best_fov_scale(model, lK, lD, rK, rD, R_r2l, t_r2l,
                                         src_size, out_size);
 
-        // 贴边后按 32 步进扩到最大画幅：只朝仍能无黑边的那个方向扩
+        // After touching the border, expand in 32-pixel steps to the maximum frame: grow only in the direction that stays black-border-free
         const cv::Size grow_w(out_size.width + kGridStep, out_size.height);
         const cv::Size grow_h(out_size.width, out_size.height + kGridStep);
         const bool w_ok = try_fov_scale(model, lK, lD, rK, rD, R_r2l, t_r2l,
@@ -319,7 +321,7 @@ Status stereo_rectify(StereoImuModel *cal,
     fill_map(left_map,  lmx, lmy, out_size.width, out_size.height);
     fill_map(right_map, rmx, rmy, out_size.width, out_size.height);
 
-    // 虚拟内外参就地写回（无畸变、共焦、主点居中；T 原样保留）
+    // In-place write-back of virtual intrinsics/extrinsics (zero distortion, shared focal, centered principal point; T unchanged)
     write_virtual(&cal->cam_left,  cal->cam_left_R,  cal->cam_left_R,  proj_lP, rect_lR);
     write_virtual(&cal->cam_right, cal->cam_right_R, cal->cam_right_R, proj_rP, rect_rR);
     return Status::Ok;

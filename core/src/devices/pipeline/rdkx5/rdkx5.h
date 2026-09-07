@@ -2,7 +2,7 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  *
- * RDK X5 平台骨架：节点接口。无共享上下文，每个节点直接收所需资源。
+ * RDK X5 platform skeleton: node interfaces. No shared context; each node takes the resources it needs.
  */
 #ifndef GS130_PIPELINE_RDKX5_H
 #define GS130_PIPELINE_RDKX5_H
@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-/* sensor 供电：on=1 上电，on=0 下电 */
+/* sensor power: on=1 power up, on=0 power down */
 int sensor_power(int gpio, int on);
 
 int camera_open(
@@ -43,11 +43,11 @@ int isp_open(
     hbn_vnode_handle_t *isp, 
     uint32_t width, uint32_t height);
 
-/* ROI 整除检查：ROI 宽高能被整除则 0，否则 -1（防整数除法截断） */
+/* ROI exact-divide check: 0 if the ROI width/height divide exactly, else -1 (guards integer-division truncation) */
 int roi_ratio_exact(uint32_t in_w, uint32_t in_h,
                     uint32_t out_w, uint32_t out_h);
 
-/* 等比取景：从 in 裁出与 out 同宽高比的 ROI */
+/* aspect-preserving crop: cut an ROI from 'in' with the same aspect ratio as 'out' */
 common_rect_t aspect_roi(uint32_t in_w, uint32_t in_h,
                          uint32_t out_w, uint32_t out_h);
 

@@ -7,12 +7,12 @@
 namespace gs130 {
 namespace imu {
 
-// IMU 型号声明
+// IMU model declarations
 extern const ModelDesc kIcm42688;
 
 namespace {
 
-// IMU 型号注册表
+// IMU model registry table
 const ModelDesc *const kModelTable[] = {
     &kIcm42688,
     nullptr,

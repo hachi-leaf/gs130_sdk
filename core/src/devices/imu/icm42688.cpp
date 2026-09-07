@@ -2,8 +2,8 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  *
- * ICM-42688-P 实现。基于 DS-000347 Rev 1.2。
- * 本文件自成一体：寄存器、编码、时序全部局部化，不与其他型号共享代码。
+ * ICM-42688-P implementation. Based on DS-000347 Rev 1.2.
+ * This file is self-contained: registers, encodings, and timing are all local; no code is shared with other models.
  */
 #include "devices/imu/imu.hpp"
 
@@ -35,30 +35,30 @@ constexpr uint8_t kIntConfig1   = 0x64;
 constexpr uint8_t kWhoAmI       = 0x75;
 
 // ---------------- bank 1 ----------------
-constexpr uint8_t kIntfConfig5  = 0x7B;   // PIN9 复用为 FSYNC
+constexpr uint8_t kIntfConfig5  = 0x7B;   // PIN9 muxed as FSYNC
 
 constexpr uint8_t kPacketSize   = 16;
-constexpr uint8_t kFsyncMask    = 0x0C;   // 包头 bits[3:2]
-constexpr uint8_t kFsyncVal     = 0x0C;   // 11 = FSYNC delta；10 = 普通时间戳
+constexpr uint8_t kFsyncMask    = 0x0C;   // packet header bits[3:2]
+constexpr uint8_t kFsyncVal     = 0x0C;   // 11 = FSYNC delta; 10 = normal timestamp
 
-// delta_time 刻度换算：us = raw * 32 / 30
+// delta_time tick conversion: us = raw * 32 / 30
 constexpr uint32_t kTickNum = 32;
 constexpr uint32_t kTickDen = 30;
 
-// {物理值, 寄存器位}。以物理值为键，便于与 datasheet 逐行核对。
+// {physical value, register bits}. Keyed by physical value for easy line-by-line checking against the datasheet.
 struct Code {
     uint16_t value;
     uint8_t  bits;
 };
 
-// GYRO/ACCEL_CONFIG0 低 4 位
+// GYRO/ACCEL_CONFIG0 low 4 bits
 constexpr Code kOdr[] = {
     {200, 0x07},
     {500, 0x0F},
     {0, 0},
 };
 
-// 量程编码是降序的：000 = ±16g，011 = ±2g
+// Full-scale encoding is descending: 000 = +/-16g, 011 = +/-2g
 constexpr Code kAccelFsr[] = {
     {16, 0x00},
     {8,  0x20},
@@ -67,7 +67,7 @@ constexpr Code kAccelFsr[] = {
     {0, 0},
 };
 
-// 同样降序：000 = ±2000dps，011 = ±250dps
+// Also descending: 000 = +/-2000dps, 011 = +/-250dps
 constexpr Code kGyroFsr[] = {
     {2000, 0x00},
     {1000, 0x20},
@@ -76,7 +76,7 @@ constexpr Code kGyroFsr[] = {
     {0, 0},
 };
 
-// UI 滤波档位数，档位与带宽的对应关系见 ModelDesc::info
+// Number of UI filter settings; see ModelDesc::info for setting-to-bandwidth mapping
 constexpr uint8_t kBwSelCount = 16;
 
 bool lookup(const Code *tab, uint32_t value, uint8_t *bits)
@@ -97,7 +97,7 @@ bool select_bank(base::I2cDevice &bus, uint8_t bank)
 
 Status init(base::I2cDevice &bus, const ImuConfig &cfg)
 {
-    // 严格校验：不支持的值（含未设置的 0）一律报错，不取默认值、不就近取整
+    // Strict validation: unsupported values (including unset 0) always error out; no defaults, no rounding to nearest
     uint8_t odr_bits, afs_bits, gfs_bits;
     if(!lookup(kOdr, cfg.odr_hz, &odr_bits))                     return Status::Unsupported;
     if(!lookup(kAccelFsr, cfg.accel_fsr_g, &afs_bits))           return Status::Unsupported;
@@ -110,12 +110,12 @@ Status init(base::I2cDevice &bus, const ImuConfig &cfg)
     if(!select_bank(bus, 0))
         return Status::HwError;
 
-    // 软复位
+    // Soft reset
     if(bus.update(kDeviceConfig, 0x01, 0x01) != Status::Ok)
         return Status::HwError;
     usleep(1500);
 
-    // PIN9 复用为 FSYNC，该寄存器在 bank 1
+    // PIN9 muxed as FSYNC; this register is in bank 1
     if(!select_bank(bus, 1))
         return Status::HwError;
     if(bus.update(kIntfConfig5, 0x06, 0x02) != Status::Ok)
@@ -123,23 +123,23 @@ Status init(base::I2cDevice &bus, const ImuConfig &cfg)
     if(!select_bank(bus, 0))
         return Status::HwError;
 
-    if(bus.write(kIntfConfig1, 0x91) != Status::Ok)     // RC 振荡器
+    if(bus.write(kIntfConfig1, 0x91) != Status::Ok)     // RC oscillator
         return Status::HwError;
-    if(bus.write(kTmstConfig, 0x23) != Status::Ok)      // 时间戳 + delta 模式
+    if(bus.write(kTmstConfig, 0x23) != Status::Ok)      // timestamp + delta mode
         return Status::HwError;
-    if(bus.write(kFsyncConfig, 0x10) != Status::Ok)     // FSYNC 上升沿
+    if(bus.write(kFsyncConfig, 0x10) != Status::Ok)     // FSYNC rising edge
         return Status::HwError;
     if(bus.write(kFifoConfig1, 0x4F) != Status::Ok)     // TMST_FSYNC+TEMP+GYRO+ACCEL
         return Status::HwError;
     if(bus.write(kIntConfig1, 0x00) != Status::Ok)      // async reset off
         return Status::HwError;
 
-    // 上电
+    // Power on
     if(bus.update(kPwrMgmt0, 0x3F, 0x0F) != Status::Ok)
         return Status::HwError;
     usleep(50000);
 
-    // FIFO 先 bypass，再配采样参数
+    // FIFO to bypass first, then configure sampling parameters
     if(bus.update(kFifoConfig, 0xC0, 0x00) != Status::Ok)
         return Status::HwError;
     if(bus.update(kGyroConfig0, 0xEF, static_cast<uint8_t>(gfs_bits | odr_bits))
@@ -159,7 +159,7 @@ Status start(base::I2cDevice &bus)
 {
     uint8_t int_status;
     if(!select_bank(bus, 0))return Status::HwError;
-    (void)bus.readBurst(kIntStatus, &int_status, 1);   // 清 FIFO_FULL 残留标志
+    (void)bus.readBurst(kIntStatus, &int_status, 1);   // clear stale FIFO_FULL flag
     if(bus.update(kFifoConfig, 0xC0, 0x40) != Status::Ok)   // stream-to-FIFO
         return Status::HwError;
     return Status::Ok;
@@ -205,7 +205,7 @@ Status read(base::I2cDevice &bus, ImuHwFifo16Packet *out, size_t cap, size_t *n_
         s.gyro[2]  = static_cast<int16_t>((p[11] << 8) | p[12]);
         s.temp     = static_cast<int8_t>(p[13]);
 
-        // 包头非 FSYNC 时该字段是普通时间戳而非沿偏移，置 0 避免误用
+        // When the header is not FSYNC, this field is a normal timestamp, not an edge offset; set 0 to avoid misuse
         if(s.is_fsync){
             const uint32_t dt = static_cast<uint32_t>((p[14] << 8) | p[15]);
             s.delta_time_us = dt * kTickNum / kTickDen;
@@ -225,12 +225,12 @@ bool full(base::I2cDevice &bus)
     uint8_t val = 0;
     if(!select_bank(bus, 0))return false;
     if(bus.readBurst(kIntStatus, &val, 1) != Status::Ok)return false;
-    return (val & 0x01) != 0;   // INT_STATUS bit0 = FIFO_FULL（读后自动清）
+    return (val & 0x01) != 0;   // INT_STATUS bit0 = FIFO_FULL (auto-cleared on read)
 }
 
 void deinit(base::I2cDevice &bus)
 {
-    // 优雅退出：回 bank0 → 停 FIFO → 传感器下电
+    // Graceful shutdown: back to bank0 -> stop FIFO -> power down the sensor
     select_bank(bus, 0);
     bus.update(kFifoConfig, 0xC0, 0x00);
     bus.update(kPwrMgmt0, 0x3F, 0x00);
@@ -238,7 +238,7 @@ void deinit(base::I2cDevice &bus)
 
 } // namespace
 
-// 定义处必须写 extern：C++ 中 namespace 作用域的 const 默认是内部链接
+// The definition must use extern: a namespace-scope const has internal linkage by default in C++
 extern const ModelDesc kIcm42688 = {
     kWhoAmI,
     0x47,
@@ -247,11 +247,11 @@ extern const ModelDesc kIcm42688 = {
     "  odr      : 200 / 500 Hz\n"
     "  accel fsr: 2 / 4 / 8 / 16 g\n"
     "  gyro fsr : 250 / 500 / 1000 / 2000 dps\n"
-    "  bw_sel 0..7，带宽 = odr/2 (sel 0) 或 max(odr,400)/{4,5,8,10,16,20,40}:\n"
+    "  bw_sel 0..7, bandwidth = odr/2 (sel 0) or max(odr,400)/{4,5,8,10,16,20,40}:\n"
     "    bw_sel     0     1     2     3     4     5     6     7\n"
     "    odr 200    100   100   80    50    40    25    20    10   Hz\n"
     "    odr 500    250   125   100   62.5  50    31.25 25    12.5 Hz\n"
-    "  噪声密度: accel 70 ug/rtHz, gyro 0.0028 dps/rtHz",
+    "  noise density: accel 70 ug/rtHz, gyro 0.0028 dps/rtHz",
     init,
     start,
     stop,

@@ -19,11 +19,11 @@ class TimestampTracker {
 public:
     explicit TimestampTracker(uint32_t master_cycle_ns);
 
-    // 禁止拷贝
+    // copying disabled
     TimestampTracker(const TimestampTracker &) = delete;             
     TimestampTracker &operator=(const TimestampTracker &) = delete;
 
-    // 允许移动（std::mutex 不可移动，锁存放在 unique_ptr 中；移动后源对象不可再用）
+    // moving allowed (std::mutex is not movable, so the lock is held via unique_ptr; the source object is unusable after the move)
     TimestampTracker(TimestampTracker &&other) noexcept
         : master_cycle_ns_(other.master_cycle_ns_), master_(other.master_),
           slave_(other.slave_), ready_(std::move(other.ready_)),
@@ -42,42 +42,42 @@ public:
         return *this;
     }
 
-    // 上传主时钟绝对时间作为相位参考
+    // upload the master clock's absolute time as the phase reference
     void update_master_timestamp_ns(uint64_t timestamp_ns);
 
-    // 上传从时钟样本。delta 为 NULL 表示普通样本；
-    // 否则为锚点样本（触发沿到采样点偏移，ns）。
+    // upload a slave clock sample. delta == NULL means an ordinary sample;
+    // otherwise it is an anchor sample (offset from trigger edge to sample point, ns).
     void feed_slave_sample(const uint64_t *delta_time_ns);
 
-    // 从新到旧弹出就绪样本的修正时间戳；无更多返回 false。
-    // 首次返回本帧（锚点样本），之后依次是前一帧、再前一帧……
+    // pop corrected timestamps of ready samples, newest first; returns false when none remain.
+    // the first call returns the current frame (anchor sample), then the previous frame, the one before, ...
     bool get_timestamp(uint64_t *slave_timestamp_ns);
 
-    // 就绪时间戳数量（外侧配对前断言用）
+    // number of ready timestamps (for assertion before external pairing)
     size_t ready_count() const;
 
-    // 取出全部就绪时间戳（新到旧：首元素=当前锚点样本），同时清空
+    // take all ready timestamps (newest first: first element = current anchor sample) and clear them
     std::vector<uint64_t> take_ready();
 
-    // 清空就绪时间戳（丢弃未配对的）
+    // clear ready timestamps (discarding unpaired ones)
     void clear_ready();
 
 private:
-    // 回卷对齐主时钟相位；调用前须由公开方法持有 mtx_
+    // wrap-align to the master clock phase; the caller must hold mtx_ through a public method
     uint64_t align_master_phase(uint64_t predicted) const;
 
-    // 主时钟侧给的绝对时间
+    // absolute time provided by the master clock side
     struct MasterClock {
-        uint64_t first_ns = 0;   // 首帧
-        uint64_t last_ns = 0;    // 最新（相位参考）
+        uint64_t first_ns = 0;   // first frame
+        uint64_t last_ns = 0;    // latest (phase reference)
     };
 
     enum class Phase { WaitFirstAnchor, WaitTwoMaster, WaitKeyPoint, Tracking };
 
     struct SlaveCounter {
         Phase phase = Phase::WaitFirstAnchor;
-        uint64_t last_anchor_edge_timestamp_ns = 0;   // 上个锚定点主时间戳
-        uint64_t last_anchor_sample_timestamp_ns = 0; // 上个锚定从时间戳
+        uint64_t last_anchor_edge_timestamp_ns = 0;   // master timestamp of the previous anchor point
+        uint64_t last_anchor_sample_timestamp_ns = 0; // slave timestamp of the previous anchor
 
         // WaitFirstAnchor
         bool has_first_anchor = false;
@@ -87,12 +87,12 @@ private:
         uint32_t sample_count = 0;
     };
 
-    uint32_t master_cycle_ns_;    // 主时钟名义周期（帧周期）
+    uint32_t master_cycle_ns_;    // master clock nominal period (frame period)
 
     MasterClock master_;
     SlaveCounter slave_;
 
-    std::vector<uint64_t> ready_;    // 就绪时间戳（get 从尾部弹出）
+    std::vector<uint64_t> ready_;    // ready timestamps (get pops from the tail)
 
     std::unique_ptr<std::mutex> mtx_;
 };

@@ -7,12 +7,12 @@
 namespace gs130 {
 namespace eeprom {
 
-// EEPROM 型号声明
+// EEPROM model declarations
 extern const ModelDesc kUnionStereoImuFisheyeV1p2R0N4;
 
 namespace {
 
-// EEPROM 型号注册表
+// EEPROM model registry table
 const ModelDesc *const kModelTable[] = {
     &kUnionStereoImuFisheyeV1p2R0N4,
     nullptr,

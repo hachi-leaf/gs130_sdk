@@ -2,7 +2,7 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  *
- * isp 节点：offline(DDR) ISP，输出 NV12。
+ * isp node: offline (DDR) ISP, NV12 output.
  */
 #include "rdkx5.h"
 
@@ -11,7 +11,7 @@
 int isp_open(hbn_vnode_handle_t *isp, uint32_t width, uint32_t height)
 {
     isp_attr_t attr = {
-        .input_mode = DDR_MODE,      /* offline，多路 ISP 必须离线 */
+        .input_mode = DDR_MODE,      /* offline; multi-channel ISP must run offline */
         .sensor_mode = ISP_NORMAL_M,
         .crop = { .x = 0, .y = 0, .w = width, .h = height },
     };

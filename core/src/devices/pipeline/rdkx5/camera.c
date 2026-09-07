@@ -2,7 +2,7 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  *
- * camera 节点：填充 camera/mipi 配置并 hbn_camera_create。
+ * camera node: fill the camera/mipi config and call hbn_camera_create.
  */
 #define _DEFAULT_SOURCE
 #include "rdkx5.h"
@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-/* sensor 供电：on=1 复位时序 1→0→1（每段 30ms），on=0 置 0 */
+/* sensor power: on=1 reset sequence 1->0->1 (30 ms per step), on=0 drive 0 */
 int sensor_power(int gpio, int on)
 {
     if(gpio < 0)return 0;
@@ -67,7 +67,7 @@ int camera_open(camera_handle_t *cam_fd, uint8_t i2c_addr,
     camera_config_t cam_cfg = {
         .name = "sc132gs",
         .addr = i2c_addr,
-        .sensor_mode = 6,            /* SLAVE：LPWM 外触发，两路真正同步 */
+        .sensor_mode = 6,            /* SLAVE: LPWM external trigger, both channels truly in sync */
         .fps = fps,
         .format = 0x2B,              /* RAW10 */
         .width = width,

@@ -27,11 +27,11 @@ public:
     {    
     }
 
-    // 禁止 copy
+    // copying disabled
     Fifo(const Fifo &) = delete;
     Fifo &operator=(const Fifo &) = delete;
 
-    // 定义 move 行为
+    // define move behavior
     Fifo(Fifo &&other) noexcept: 
         mode_(other.mode_), buf_(std::move(other.buf_)),
         head_(other.head_), tail_(other.tail_), count_(other.count_),
@@ -63,7 +63,7 @@ public:
         if(full_unlocked()){
             if(mode_ == FifoMode::DropNew)
                 return false;
-            tail_ = (tail_ + 1) % buf_.size();   // 覆盖最旧
+            tail_ = (tail_ + 1) % buf_.size();   // overwrite the oldest
         }
         else{
             ++count_;

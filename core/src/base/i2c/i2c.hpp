@@ -19,15 +19,15 @@ public:
     I2cDevice(uint8_t bus, uint8_t addr);
     ~I2cDevice();
 
-    // 禁止 copy
+    // copying disabled
     I2cDevice(const I2cDevice &)            = delete;
     I2cDevice &operator=(const I2cDevice &) = delete;
 
-    // 允许 move
+    // moving allowed
     I2cDevice(I2cDevice &&other) noexcept;
     I2cDevice &operator=(I2cDevice &&other) noexcept;
 
-    // 布尔转换语义：true 成功；false 失败
+    // boolean conversion semantics: true = success; false = failure
     explicit operator bool() const { return fd_ >= 0; }
 
     bool is_open() const { return fd_ >= 0; }

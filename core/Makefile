@@ -1,12 +1,12 @@
 # GS130 SDK - Core library Makefile
 #
-#   make                      构建（默认 rdkx5 平台）
-#   make PLATFORM=rdks100      构建 S100 平台
-#   make PLATFORM=rdks600      构建 S600 平台
-#   make sample                构建示例程序
-#   make clean                 清理
+#   make                      Build (default rdkx5 platform)
+#   make PLATFORM=rdks100      Build for the S100 platform
+#   make PLATFORM=rdks600      Build for the S600 platform
+#   make sample                Build the sample program
+#   make clean                 Clean
 
-# 平台选择：rdkx5 / rdks100 / rdks600
+# Platform selection: rdkx5 / rdks100 / rdks600
 PLATFORM ?= rdkx5
 
 ifeq ($(PLATFORM),rdkx5)
@@ -16,7 +16,7 @@ PLATFORM_DEF = -DRDKS100_RUNTIME
 else ifeq ($(PLATFORM),rdks600)
 PLATFORM_DEF = -DRDKS600_RUNTIME
 else
-$(error 未知平台：PLATFORM=$(PLATFORM)，可选 rdkx5 / rdks100 / rdks600)
+$(error Unknown platform: PLATFORM=$(PLATFORM), choose rdkx5 / rdks100 / rdks600)
 endif
 
 VERSION := $(shell cat ../VERSION)
@@ -30,7 +30,7 @@ CFLAGS   = $(COMMON_FLAGS) -std=gnu11
 CXXFLAGS = $(COMMON_FLAGS) -std=gnu++17 $(PLATFORM_DEF)
 INCLUDES = -Iinclude -Isrc -I/usr/include/opencv4
 
-# OpenCV 静态链接（自包含，不依赖运行时 .so）
+# OpenCV static link (self-contained, no runtime .so dependency)
 OPENCV_LIBS := -Wl,--start-group \
     /usr/lib/aarch64-linux-gnu/libopencv_calib3d.a \
     /usr/lib/aarch64-linux-gnu/libopencv_features2d.a \

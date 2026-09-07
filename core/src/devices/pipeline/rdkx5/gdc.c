@@ -2,8 +2,8 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  *
- * gdc 节点：map 做 +0.5/clamp/旋转后编码成 bin，再打开 GDC vnode。
- * map 是 RemapPoint 数组（布局与 point_t 一致，static_assert 保证）。
+ * gdc node: apply +0.5/clamp/rotation to the map, encode it as a bin, then open the GDC vnode.
+ * map is a RemapPoint array (layout matches point_t, guaranteed by static_assert).
  */
 #include "rdkx5.h"
 
@@ -17,10 +17,10 @@ int gdc_open(hbn_vnode_handle_t *gdc, hb_mem_common_buf_t *gdc_bin,
     const uint32_t npts = grid_w * grid_h;
     const point_t *m = (const point_t *)map;
 
-    // 旋转目标（GDC 输入）是竖屏：xmax/ymax 固定用竖屏尺寸
+    // the rotation target (GDC input) is portrait: xmax/ymax always use portrait dimensions
     const double xmax = (double)in_w - 1.0;
     const double ymax = (double)in_h - 1.0;
-    // map 的源坐标在横屏时宽高互换，clamp 上限跟着 swap
+    // the map's source coords swap width/height in landscape; the clamp bounds follow the swap
     const int    swap     = (install_angle == 90 || install_angle == 270);
     const double src_xmax = swap ? ymax : xmax;
     const double src_ymax = swap ? xmax : ymax;
@@ -30,12 +30,12 @@ int gdc_open(hbn_vnode_handle_t *gdc, hb_mem_common_buf_t *gdc_bin,
         return -1;
 
     for (uint32_t i = 0; i < npts; ++i) {
-        /* GDC 双线性插值补偿：+0.5 亚像素，并 clamp 防黑边 */
+        /* GDC bilinear-interpolation compensation: +0.5 sub-pixel, clamp to avoid black edges */
         double x = m[i].x + 0.5;
         double y = m[i].y + 0.5;
         if (x > src_xmax) x = src_xmax;
         if (y > src_ymax) y = src_ymax;
-        /* 安装旋转作用在源坐标上，把横屏采样转回竖屏 */
+        /* the install rotation applies to the source coords, converting landscape sampling back to portrait */
         switch (install_angle) {
         case 90:  pts[i].x = y;        pts[i].y = ymax - x; break;
         case 180: pts[i].x = xmax - x; pts[i].y = ymax - y; break;

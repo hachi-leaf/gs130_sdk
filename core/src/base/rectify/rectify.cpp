@@ -66,7 +66,7 @@ bool border_in_source(const cv::Mat &mx, const cv::Mat &my, int src_w, int src_h
 // final generation uses out_size. Otherwise, when expanding the frame, the focal length would scale
 // with the size, angular coverage would stay unchanged, the black-border check would always pass,
 // and the expansion loop would never terminate.
-void stereo_rectify(DistModel model,
+void stereo_rectify_impl(DistModel model,
                     const cv::Mat &lK, const cv::Mat &lD,
                     const cv::Mat &rK, const cv::Mat &rD,
                     const cv::Mat &R_r2l, const cv::Mat &t_r2l,
@@ -117,9 +117,9 @@ bool try_fov_scale(DistModel model,
                    double fov_scale)
 {
     cv::Mat rect_lR, rect_rR, proj_lP, proj_rP;
-    stereo_rectify(model, lK, lD, rK, rD, R_r2l, t_r2l,
-                   src_size, out_size, src_size, fov_scale,
-                   rect_lR, rect_rR, proj_lP, proj_rP);
+    stereo_rectify_impl(model, lK, lD, rK, rD, R_r2l, t_r2l,
+                        src_size, out_size, src_size, fov_scale,
+                        rect_lR, rect_rR, proj_lP, proj_rP);
 
     // Scale P proportionally with the proxy size
     const double sx = static_cast<double>(probe_size.width) / out_size.width;
@@ -310,9 +310,9 @@ Status stereo_rectify(StereoImuModel *cal,
     }
 
     cv::Mat rect_lR, rect_rR, proj_lP, proj_rP;
-    stereo_rectify(model, lK, lD, rK, rD, R_r2l, t_r2l,
-                   src_size, out_size, out_size, fov_scale,
-                   rect_lR, rect_rR, proj_lP, proj_rP);
+    stereo_rectify_impl(model, lK, lD, rK, rD, R_r2l, t_r2l,
+                        src_size, out_size, out_size, fov_scale,
+                        rect_lR, rect_rR, proj_lP, proj_rP);
 
     align_focal_and_center(proj_lP, proj_rP, out_size.width, out_size.height);
 

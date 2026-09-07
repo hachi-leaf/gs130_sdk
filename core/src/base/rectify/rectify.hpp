@@ -1,8 +1,11 @@
 /**
+ * @file rectify.hpp
+ * @brief Binocular stereo rectification: max-frame map search + virtual calibration write-back.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
- *
- * Binocular stereo correction
+ * See the LICENSE file in the project root for the full license text.
  */
 #ifndef GS130_BASE_RECTIFY_HPP
 #define GS130_BASE_RECTIFY_HPP

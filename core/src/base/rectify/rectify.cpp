@@ -1,6 +1,11 @@
 /**
+ * @file rectify.cpp
+ * @brief stereo_rectify implementation: fov_scale coarse+fine search, 32-px frame expansion, map generation.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
+ * See the LICENSE file in the project root for the full license text.
  */
 #include "base/rectify/rectify.hpp"
 
@@ -8,7 +13,6 @@
 #include <opencv2/core.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstring>
 
 namespace gs130 {
@@ -214,10 +218,10 @@ void align_focal_and_center(cv::Mat &proj_lP, cv::Mat &proj_rP, int w, int h)
 void fill_map(std::vector<RemapPoint> *dst,
               const cv::Mat &mx, const cv::Mat &my, int w, int h)
 {
-    dst->resize(static_cast<size_t>(w) * static_cast<size_t>(h));
+    dst->resize(static_cast<std::size_t>(w) * static_cast<std::size_t>(h));
     for(int y = 0; y < h; ++y){
         for(int x = 0; x < w; ++x){
-            RemapPoint &p = (*dst)[static_cast<size_t>(y) * w + x];
+            RemapPoint &p = (*dst)[static_cast<std::size_t>(y) * w + x];
             p.x = mx.at<float>(y, x);
             p.y = my.at<float>(y, x);
         }

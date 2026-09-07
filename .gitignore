@@ -1,0 +1,14 @@
+# Build artifacts (make / make sample)
+core/build/
+core/out/
+
+# Object files and libraries (in case of in-tree builds)
+*.o
+*.a
+*.so
+*.so.*
+
+# Editor / OS noise
+*.swp
+*~
+.DS_Store

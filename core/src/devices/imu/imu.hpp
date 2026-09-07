@@ -1,6 +1,11 @@
 /**
+ * @file imu.hpp
+ * @brief General Packaging for IMU Devices.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
+ * See the LICENSE file in the project root for the full license text.
  */
 #ifndef GS130_DEVICES_IMU_IMU_HPP
 #define GS130_DEVICES_IMU_IMU_HPP
@@ -14,11 +19,8 @@
 namespace gs130 {
 namespace imu {
 
-// Model descriptor table: each model implements its own set of operations and is
-// handed an I2C accessor already bound to a bus and address.
-// Adding a model = write an implementation file + define a ModelDesc + register it in imu.cpp's table.
 struct ModelDesc {
-    uint8_t who_am_i_addr;    // probe register (must be in the chip's default bank)
+    uint8_t who_am_i_addr;
     uint8_t who_am_i_val;
     const char  *name;
     const char  *info;
@@ -27,14 +29,11 @@ struct ModelDesc {
     Status (*start) (base::I2cDevice &bus);
     void   (*stop)  (base::I2cDevice &bus);
     Status (*read)  (base::I2cDevice &bus, ImuHwFifo16Packet *out,
-                     size_t cap, size_t *n_out);
-    bool   (*full)(base::I2cDevice &bus);   // read INT_STATUS to check FIFO full
-    void   (*deinit)(base::I2cDevice &bus);   // power down, called from the destructor
+                     std::size_t cap, std::size_t *n_out);
+    bool   (*full)(base::I2cDevice &bus);
+    void   (*deinit)(base::I2cDevice &bus);
 };
 
-// The constructor opens the bus and matches the model by WHO_AM_I; the I2C device
-// handle is held for the object's lifetime (closed on destruction).
-// Each method forwards directly to the model implementation.
 class Imu {
 public:
     Imu(uint8_t bus, uint8_t addr);
@@ -52,7 +51,7 @@ public:
     void   stop();
 
     // read FIFO; *n_out returns the actual packet count
-    Status read(ImuHwFifo16Packet *out, size_t cap, size_t *n_out);
+    Status read(ImuHwFifo16Packet *out, std::size_t cap, std::size_t *n_out);
 
     // whether the hardware FIFO is full (overflow drops packets)
     bool full();

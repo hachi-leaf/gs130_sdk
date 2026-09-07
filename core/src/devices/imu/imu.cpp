@@ -1,18 +1,21 @@
 /**
+ * @file imu.cpp
+ * @brief IMU model registry table and probe loop.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
+ * See the LICENSE file in the project root for the full license text.
  */
 #include "devices/imu/imu.hpp"
 
 namespace gs130 {
 namespace imu {
 
-// IMU model declarations
 extern const ModelDesc kIcm42688;
 
 namespace {
 
-// IMU model registry table
 const ModelDesc *const kModelTable[] = {
     &kIcm42688,
     nullptr,
@@ -46,7 +49,7 @@ Status Imu::start(){return desc_->start(bus_);}
 
 void Imu::stop(){desc_->stop(bus_);}
 
-Status Imu::read(ImuHwFifo16Packet *out, size_t cap, size_t *n_out){return desc_->read(bus_, out, cap, n_out);}
+Status Imu::read(ImuHwFifo16Packet *out, std::size_t cap, std::size_t *n_out){return desc_->read(bus_, out, cap, n_out);}
 
 bool Imu::full(){return desc_ && desc_->full(bus_);}
 

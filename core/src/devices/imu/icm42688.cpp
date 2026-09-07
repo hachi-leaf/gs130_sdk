@@ -1,14 +1,15 @@
 /**
+ * @file icm42688.cpp
+ * @brief ICM-42688-P implementation.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
- *
- * ICM-42688-P implementation. Based on DS-000347 Rev 1.2.
- * This file is self-contained: registers, encodings, and timing are all local; no code is shared with other models.
+ * See the LICENSE file in the project root for the full license text.
  */
 #include "devices/imu/imu.hpp"
 
 #include <unistd.h>
-#include <cstdio>
 
 #include <vector>
 
@@ -170,7 +171,7 @@ void stop(base::I2cDevice &bus)
     bus.update(kFifoConfig, 0xC0, 0x00);
 }
 
-Status read(base::I2cDevice &bus, ImuHwFifo16Packet *out, size_t cap, size_t *n_out)
+Status read(base::I2cDevice &bus, ImuHwFifo16Packet *out, std::size_t cap, std::size_t *n_out)
 {
     if(!out || !cap || !n_out)
         return Status::ParamError;
@@ -187,7 +188,7 @@ Status read(base::I2cDevice &bus, ImuHwFifo16Packet *out, size_t cap, size_t *n_
     if(pkts > cap)
         pkts = static_cast<uint16_t>(cap);
 
-    std::vector<uint8_t> raw(static_cast<size_t>(pkts) * kPacketSize);
+    std::vector<uint8_t> raw(static_cast<std::size_t>(pkts) * kPacketSize);
     if(bus.readBurst(kFifoData, raw.data(), static_cast<uint32_t>(raw.size()))
             != Status::Ok)
         return Status::HwError;
@@ -209,7 +210,6 @@ Status read(base::I2cDevice &bus, ImuHwFifo16Packet *out, size_t cap, size_t *n_
         if(s.is_fsync){
             const uint32_t dt = static_cast<uint32_t>((p[14] << 8) | p[15]);
             s.delta_time_us = dt * kTickNum / kTickDen;
-            fprintf(stderr, "[F] %u\n", s.delta_time_us);
         }
         else{
             s.delta_time_us = 0;
@@ -243,15 +243,22 @@ extern const ModelDesc kIcm42688 = {
     kWhoAmI,
     0x47,
     "ICM-42688-P",
-    "ICM-42688-P\n"
-    "  odr      : 200 / 500 Hz\n"
-    "  accel fsr: 2 / 4 / 8 / 16 g\n"
-    "  gyro fsr : 250 / 500 / 1000 / 2000 dps\n"
-    "  bw_sel 0..7, bandwidth = odr/2 (sel 0) or max(odr,400)/{4,5,8,10,16,20,40}:\n"
-    "    bw_sel     0     1     2     3     4     5     6     7\n"
-    "    odr 200    100   100   80    50    40    25    20    10   Hz\n"
-    "    odr 500    250   125   100   62.5  50    31.25 25    12.5 Hz\n"
-    "  noise density: accel 70 ug/rtHz, gyro 0.0028 dps/rtHz",
+    "    odr:       200 | 500 Hz\n"
+    "    accel fsr: 2 | 4 | 8 | 16 g\n"
+    "    gyro fsr:  250 | 500 | 1000 | 2000 dps\n"
+    "    bw_sel: 0..F\n"
+    "    - 0 BW=ODR/2\n"
+    "    - 1 BW=max(400Hz, ODR)/4\n"
+    "    - 2 BW=max(400Hz, ODR)/5\n"
+    "    - 3 BW=max(400Hz, ODR)/8\n"
+    "    - 4 BW=max(400Hz, ODR)/10\n"
+    "    - 5 BW=max(400Hz, ODR)/16\n"
+    "    - 6 BW=max(400Hz, ODR)/20\n"
+    "    - 7 BW=max(400Hz, ODR)/40\n"
+    "    - 8 to 13: Reserved\n"
+    "    - 14 Low Latency option: Trivial decimation @ ODR of Dec2 filter output. Dec2 runs at max(400Hz, ODR)\n"
+    "    - 15 Low Latency option: Trivial decimation @ ODR of Dec2 filter output. Dec2 runs at max(200Hz, 8*ODR)\n"
+    "    - noise density: accel 70 ug/rtHz, gyro 0.0028 dps/rtHz\n",
     init,
     start,
     stop,

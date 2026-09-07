@@ -1,12 +1,16 @@
 /**
+ * @file tracker.hpp
+ * @brief Master-slave timestamp tracker; thread-safe.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
- *
- * Master-Slave Timestamp Tracker, Thread-safe
+ * See the LICENSE file in the project root for the full license text.
  */
 #ifndef GS130_BASE_TRACKER_HPP
 #define GS130_BASE_TRACKER_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -20,7 +24,7 @@ public:
     explicit TimestampTracker(uint32_t master_cycle_ns);
 
     // copying disabled
-    TimestampTracker(const TimestampTracker &) = delete;             
+    TimestampTracker(const TimestampTracker &) = delete;
     TimestampTracker &operator=(const TimestampTracker &) = delete;
 
     // moving allowed (std::mutex is not movable, so the lock is held via unique_ptr; the source object is unusable after the move)
@@ -54,7 +58,7 @@ public:
     bool get_timestamp(uint64_t *slave_timestamp_ns);
 
     // number of ready timestamps (for assertion before external pairing)
-    size_t ready_count() const;
+    std::size_t ready_count() const;
 
     // take all ready timestamps (newest first: first element = current anchor sample) and clear them
     std::vector<uint64_t> take_ready();

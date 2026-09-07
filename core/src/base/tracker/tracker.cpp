@@ -1,8 +1,12 @@
 /**
+ * @file tracker.hpp
+ * @brief Master-slave timestamp tracker; thread-safe.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
+ * See the LICENSE file in the project root for the full license text.
  */
-
 #include "base/tracker/tracker.hpp"
 #include <cstdio>
 
@@ -49,13 +53,13 @@ void TimestampTracker::feed_slave_sample(
             slave_.phase = Phase::WaitTwoMaster;
         }
         return ;
-    
+
     case Phase::WaitTwoMaster:
         // wait for two Master clocks to arrive
         if(master_.first_ns != 0 && master_.first_ns < master_.last_ns)
             slave_.phase = Phase::WaitKeyPoint;
 
-        [[fallthrough]]
+        [[fallthrough]];
 
     case Phase::WaitKeyPoint: // key frame after two Masters
         // both Phase::WaitTwoMaster and Phase::WaitKeyPoint conditions are met
@@ -71,11 +75,9 @@ void TimestampTracker::feed_slave_sample(
 
         // intercept non-anchor frames
         if(slave_.phase != Phase::Tracking)return;
-        fprintf(stderr, "[dbg] first anchor: anchor_count=%u first_ns=%llu\n",
-                slave_.anchor_count, (unsigned long long)master_.first_ns);
-
+        
         // the anchor frame happens to share the Tracking-phase computation
-        [[fallthrough]]
+        [[fallthrough]];
 
     case Phase::Tracking:
         // anchor-frame computation
@@ -112,11 +114,10 @@ bool TimestampTracker::get_timestamp(uint64_t *slave_timestamp_ns)
     if(!slave_timestamp_ns || ready_.empty())return false;
     *slave_timestamp_ns = ready_.back();
     ready_.pop_back();
-    fprintf(stderr, "[dbg-pop] ready_remain=%zu\n", ready_.size());
     return true;
 }
 
-size_t TimestampTracker::ready_count() const
+std::size_t TimestampTracker::ready_count() const
 {
     std::lock_guard<std::mutex> lock(*mtx_);
     return ready_.size();

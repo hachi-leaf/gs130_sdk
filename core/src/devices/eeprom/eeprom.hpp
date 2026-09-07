@@ -1,6 +1,11 @@
 /**
+ * @file eeprom.hpp
+ * @brief EEPROM binocular (IMU) distortion - stereo calibration parameter reader.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
+ * See the LICENSE file in the project root for the full license text.
  */
 #ifndef GS130_DEVICES_EEPROM_EEPROM_HPP
 #define GS130_DEVICES_EEPROM_EEPROM_HPP
@@ -13,22 +18,14 @@
 namespace gs130 {
 namespace eeprom {
 
-// Model descriptor table: each model implements its own probe and parsing and is
-// handed an I2C accessor already bound to a bus and address.
-// Adding a model = write an implementation file + define a ModelDesc + register it in eeprom.cpp's table.
-struct ModelDesc {
+struct ModelDesc{
     const char *name;
     const char *info;
 
-    // recognize this model's layout; header length and checksum algorithm vary
-    // per model, so the model itself decides
     bool   (*probe)(base::I2cDevice &bus);
     Status (*read) (base::I2cDevice &bus, StereoImuModel *out);
 };
 
-// The constructor opens the bus and probes each model in turn; the I2C device
-// handle is held for the object's lifetime (closed on destruction).
-// Read-only device: no power-down or reset needed, so there is no deinit.
 class Eeprom {
 public:
     Eeprom(uint8_t bus, uint8_t addr);

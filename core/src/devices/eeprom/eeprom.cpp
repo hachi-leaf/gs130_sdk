@@ -1,6 +1,11 @@
 /**
+ * @file eeprom.cpp
+ * @brief EEPROM model registry table and probe loop.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
+ * See the LICENSE file in the project root for the full license text.
  */
 #include "devices/eeprom/eeprom.hpp"
 
@@ -27,7 +32,6 @@ Eeprom::Eeprom(uint8_t bus, uint8_t addr)
 
     for(const ModelDesc *const *m = kModelTable; *m; m++){
         if(!(*m)->probe(bus_))continue;
-
         desc_ = *m;
         return;
     }

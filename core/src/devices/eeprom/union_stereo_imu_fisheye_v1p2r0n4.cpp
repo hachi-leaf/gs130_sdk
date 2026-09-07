@@ -1,9 +1,13 @@
 /**
+ * @file union_stereo_imu_fisheye_v1p2r0n4.cpp
+ * @brief UNION stereo + IMU, fisheye, v1.2, rotation 0 deg, 4 distortion coefficients.
+ *
+ * This file is self-contained: header, checksum, offsets, and field widths are all local; no code is shared with other models.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
- *
- * UNION EEPROM: stereo + IMU, fisheye, v1.2, rotation 0 deg, 4 distortion coefficients.
- * This file is self-contained: header, checksum, offsets, and field widths are all local; no code is shared with other models.
+ * See the LICENSE file in the project root for the full license text.
  */
 #include "devices/eeprom/eeprom.hpp"
 
@@ -172,13 +176,16 @@ Status read(base::I2cDevice &bus, StereoImuModel *out)
 
 } // namespace
 
-// The definition must use extern: a namespace-scope const has internal linkage by default in C++
 extern const ModelDesc kUnionStereoImuFisheyeV1p2R0N4 = {
-    "UNION Stereo-IMU Fisheye V1.2 Rotate-0 4-Distortion-parameters",
-    "UNION v1.2 stereo+IMU fisheye calibration\n",
+    "UNION Stereo-IMU Fisheye V1.2 Rotate-0-deg 4-Distortion-parameters",
+    "   Calibration manufacturer:    UNION IMAGE\n"
+    "   Distortion model:            Fisheyes-4-parameters,\n"
+    "   Calibration version:         V1.2\n"
+    "   Device Type:                 Stereo Camera and IMU\n"
+    "   Rotating installation angle: 0 degrees\n",
     probe,
     read,
-};
+};  
 
 } // namespace eeprom
 } // namespace gs130

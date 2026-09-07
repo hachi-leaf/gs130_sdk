@@ -1,0 +1,56 @@
+diff -ruN orig/src/devices/pipeline/pipeline.hpp new/src/devices/pipeline/pipeline.hpp
+--- orig/src/devices/pipeline/pipeline.hpp	2026-08-27 22:27:58.492134652 +0800
++++ new/src/devices/pipeline/pipeline.hpp	2026-08-27 22:28:00.215829494 +0800
+@@ -30,7 +30,7 @@
+ 
+     Status init(const PipelineConfig &cfg, StereoImuModel *cal);
+     void   deinit();   // 释放 init 占用的硬件（析构兜底调用）
+-    Status start();
++    Status start(CamIndex first);   // 先开 first 那一路，再开另一路
+     void   stop();
+ 
+     // 取一帧到用户缓冲：逐行按 y_stride / uv_stride 拷贝；宽高不符报 ParamError
+diff -ruN orig/src/devices/pipeline/rdkx5/rdkx5.cpp new/src/devices/pipeline/rdkx5/rdkx5.cpp
+--- orig/src/devices/pipeline/rdkx5/rdkx5.cpp	2026-08-27 22:27:59.319580234 +0800
++++ new/src/devices/pipeline/rdkx5/rdkx5.cpp	2026-08-27 22:28:00.215957496 +0800
+@@ -311,16 +311,22 @@
+     impl_->inited = false;
+ }
+ 
+-Status Pipeline::start()
++Status Pipeline::start(CamIndex first)
+ {
+     if(!impl_->inited)
+         return Status::ParamError;
+ 
+-    for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++) {
+-        if(hbn_vflow_start(impl_->cam[i].vflow) != 0) {
+-            deinit();
+-            return Status::HwError;
+-        }
++    const size_t a = static_cast<size_t>(first);
++    const size_t b = static_cast<size_t>(
++        first == CamIndex::Right ? CamIndex::Left : CamIndex::Right);
++
++    if(hbn_vflow_start(impl_->cam[a].vflow) != 0) {
++        deinit();
++        return Status::HwError;
++    }
++    if(hbn_vflow_start(impl_->cam[b].vflow) != 0) {
++        deinit();
++        return Status::HwError;
+     }
+     return Status::Ok;
+ }
+diff -ruN orig/src/gs130w.cpp new/src/gs130w.cpp
+--- orig/src/gs130w.cpp	2026-08-27 22:28:00.195533766 +0800
++++ new/src/gs130w.cpp	2026-08-27 22:28:00.216044935 +0800
+@@ -145,7 +145,7 @@
+     while(dev->running.load() && !dev->camera_on.load())usleep(1000);
+     if(!dev->running.load())return;
+ 
+-    if(dev->pipeline->start() != Status::Ok) {
++    if(dev->pipeline->start(dev->fsync_camera) != Status::Ok) {
+         dev->running = false;   // 开流失败：全局停止，IMU 也不进入正常业务
+         return;
+     }

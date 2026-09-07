@@ -1,8 +1,11 @@
 /**
+ * @file i2c.hpp
+ * @brief RAII wrapper for Linux i2c-dev; **NOT** thread-safe.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
- *
- * I2C Wrapper, No Thread-safe
+ * See the LICENSE file in the project root for the full license text.
  */
 #ifndef GS130_BASE_I2C_HPP
 #define GS130_BASE_I2C_HPP

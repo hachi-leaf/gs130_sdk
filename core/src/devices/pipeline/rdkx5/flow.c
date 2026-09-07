@@ -1,6 +1,11 @@
 /**
+ * @file flow.c
+ * @brief flow node: vflow build/bind and camera teardown helpers.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
+ * See the LICENSE file in the project root for the full license text.
  */
 #include "rdkx5.h"
 
@@ -41,7 +46,7 @@ int vflow_build(hbn_vflow_handle_t *vflow, camera_handle_t cam_fd,
     }
 
     if(hbn_camera_attach_to_vin(cam_fd, vin) != 0)return -1;
-    
+
     return 0;
 }
 

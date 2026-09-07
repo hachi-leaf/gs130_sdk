@@ -1,8 +1,11 @@
 /**
+ * @file camera.c
+ * @brief camera node: fill the camera/mipi config and call hbn_camera_create.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
- *
- * camera node: fill the camera/mipi config and call hbn_camera_create.
+ * See the LICENSE file in the project root for the full license text.
  */
 #define _DEFAULT_SOURCE
 #include "rdkx5.h"

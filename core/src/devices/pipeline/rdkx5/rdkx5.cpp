@@ -1,13 +1,13 @@
 /**
+ * @file rdkx5.cpp
+ * @brief RDK X5 pipeline: camera probe/init, VIN-ISP-VSE/GDC flow setup, frame fetch.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
- *
- * RDK X5 platform skeleton: Pipeline method stubs, to be filled in step by step.
- * Resources live directly in Impl; passed one by one when calling nodes, no shared context.
+ * See the LICENSE file in the project root for the full license text.
  */
 #include "devices/pipeline/rdkx5/rdkx5.h"
-
-#include <cstdio>
 
 #include "devices/pipeline/pipeline.hpp"
 
@@ -56,7 +56,7 @@ struct Pipeline::Impl {
         hb_mem_common_buf_t gdc_bin{};
         int  mipi_rx = -1, reset_gpio = -1, i2c_bus = -1;
         uint8_t i2c_addr = 0;
-    } cam[static_cast<size_t>(CamIndex::Num)];
+    } cam[static_cast<std::size_t>(CamIndex::Num)];
 
     // Geometry parameters
     uint32_t input_w = 0, input_h = 0, output_w = 0, output_h = 0;
@@ -66,37 +66,37 @@ struct Pipeline::Impl {
 
 Pipeline::Pipeline(
     uint8_t left_addr, uint8_t right_addr,
-    const uint8_t *bus_list, size_t bus_num)
+    const uint8_t *bus_list, std::size_t bus_num)
     : impl_(std::make_unique<Impl>())
 {
     // Iterate bus_list: read chip id to confirm an SC132GS on that bus + address
-    for(size_t i = 0; i < bus_num; ++i){
+    for(std::size_t i = 0; i < bus_num; ++i){
         const uint8_t bus = bus_list[i];
 
         // Right camera
-        if(impl_->cam[static_cast<size_t>(CamIndex::Right)].i2c_addr == 0){
+        if(impl_->cam[static_cast<std::size_t>(CamIndex::Right)].i2c_addr == 0){
             base::I2cDevice dev(bus, right_addr);
             uint16_t id = 0;
             if(dev && dev.read16(kChipIdReg, &id) == Status::Ok && id == kChipId){
-                impl_->cam[static_cast<size_t>(CamIndex::Right)].i2c_bus  = bus;
-                impl_->cam[static_cast<size_t>(CamIndex::Right)].i2c_addr = right_addr;
+                impl_->cam[static_cast<std::size_t>(CamIndex::Right)].i2c_bus  = bus;
+                impl_->cam[static_cast<std::size_t>(CamIndex::Right)].i2c_addr = right_addr;
             }
             dev.close();
         }
         // Left camera
-        if(impl_->cam[static_cast<size_t>(CamIndex::Left)].i2c_addr == 0){
+        if(impl_->cam[static_cast<std::size_t>(CamIndex::Left)].i2c_addr == 0){
             base::I2cDevice dev(bus, left_addr);
             uint16_t id = 0;
             if(dev && dev.read16(kChipIdReg, &id) == Status::Ok && id == kChipId){
-                impl_->cam[static_cast<size_t>(CamIndex::Left)].i2c_bus  = bus;
-                impl_->cam[static_cast<size_t>(CamIndex::Left)].i2c_addr = left_addr;
+                impl_->cam[static_cast<std::size_t>(CamIndex::Left)].i2c_bus  = bus;
+                impl_->cam[static_cast<std::size_t>(CamIndex::Left)].i2c_addr = left_addr;
             }
             dev.close();
         }
     }
 
-    impl_->probed = (impl_->cam[static_cast<size_t>(CamIndex::Right)].i2c_addr != 0 &&
-                     impl_->cam[static_cast<size_t>(CamIndex::Left)].i2c_addr != 0);
+    impl_->probed = (impl_->cam[static_cast<std::size_t>(CamIndex::Right)].i2c_addr != 0 &&
+                     impl_->cam[static_cast<std::size_t>(CamIndex::Left)].i2c_addr != 0);
 }
 
 Pipeline::~Pipeline()
@@ -122,7 +122,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
             return Status::ParamError;
 
     // Determine mipi_rx and reset_gpio
-    for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
+    for(std::size_t i = 0; i < static_cast<std::size_t>(CamIndex::Num); i++){
         const int bus = impl_->cam[i].i2c_bus;
         if(bus < 0 || bus >= 32 || cfg.bus_mipi_rx[bus] == 0xFF)return Status::ParamError;
 
@@ -132,7 +132,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
 
     // Build the stream
     // Camera node
-    for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
+    for(std::size_t i = 0; i < static_cast<std::size_t>(CamIndex::Num); i++){
         int ret = camera_open(
             &impl_->cam[i].cam_fd,
             impl_->cam[i].i2c_addr,
@@ -147,7 +147,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
     }
 
     // VIN node
-    for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
+    for(std::size_t i = 0; i < static_cast<std::size_t>(CamIndex::Num); i++){
         int ret = vin_open(
             &impl_->cam[i].vin,
             impl_->cam[i].mipi_rx,
@@ -159,7 +159,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
     }
 
     // ISP node
-    for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
+    for(std::size_t i = 0; i < static_cast<std::size_t>(CamIndex::Num); i++){
         int ret = isp_open(
             &impl_->cam[i].isp,
             impl_->input_w, impl_->input_h);
@@ -187,13 +187,13 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
             const uint32_t src_h = swap ? impl_->input_w : impl_->input_h;
 
             // Generate GDC Map
-            std::vector<RemapPoint> map[static_cast<size_t>(CamIndex::Num)];
+            std::vector<RemapPoint> map[static_cast<std::size_t>(CamIndex::Num)];
             // Stereo distortion rectification for both cameras
             if(cfg.mode == OutputMode::Rect){
                 Status st = base::stereo_rectify(cal, src_w, src_h,
                                                  &impl_->mid_w, &impl_->mid_h,
-                                                 &map[static_cast<size_t>(CamIndex::Left)],
-                                                 &map[static_cast<size_t>(CamIndex::Right)]);
+                                                 &map[static_cast<std::size_t>(CamIndex::Left)],
+                                                 &map[static_cast<std::size_t>(CamIndex::Right)]);
                 if(st != Status::Ok){
                     deinit();
                     return Status::Unsupported;
@@ -206,7 +206,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
 
                 // Generate identity Map
                 const uint32_t n = impl_->mid_w * impl_->mid_h;
-                for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
+                for(std::size_t i = 0; i < static_cast<std::size_t>(CamIndex::Num); i++){
                     map[i].resize(n);
                     for(uint32_t p = 0; p < n; p++){
                         map[i][p].x = p % impl_->mid_w;
@@ -216,7 +216,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
             }
 
             // gdc_open per camera (map[0]=Right, map[1]=Left)
-            for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
+            for(std::size_t i = 0; i < static_cast<std::size_t>(CamIndex::Num); i++){
                 int ret = gdc_open(
                     &impl_->cam[i].gdc, &impl_->cam[i].gdc_bin,
                     map[i].data(), impl_->input_w, impl_->input_h,
@@ -249,7 +249,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
         impl_->vse_chn = (impl_->output_w > roi.w || impl_->output_h > roi.h) ? 5 : 0;
 
         // vse_open per camera
-        for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
+        for(std::size_t i = 0; i < static_cast<std::size_t>(CamIndex::Num); i++){
             int ret = vse_open(
                 &impl_->cam[i].vse, impl_->mid_w, impl_->mid_h,
                 impl_->output_w, impl_->output_h, impl_->vse_chn);
@@ -273,7 +273,7 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
     }
 
     // Bind nodes and determine the output position
-    for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
+    for(std::size_t i = 0; i < static_cast<std::size_t>(CamIndex::Num); i++){
         int ret = vflow_build(
             &impl_->cam[i].vflow, impl_->cam[i].cam_fd,
             impl_->cam[i].vin, impl_->cam[i].isp,
@@ -295,7 +295,7 @@ void Pipeline::deinit()
     if(!impl_->inited)
         return;
 
-    for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
+    for(std::size_t i = 0; i < static_cast<std::size_t>(CamIndex::Num); i++){
         teardown_cam(impl_->cam[i].vflow, impl_->cam[i].cam_fd,
                      impl_->cam[i].vin, impl_->cam[i].isp,
                      impl_->cam[i].vse, impl_->cam[i].gdc,
@@ -309,7 +309,7 @@ void Pipeline::deinit()
     }
 
     // Power on again: vflow_destroy powered off; restore sensors to normal detectable state
-    for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++){
+    for(std::size_t i = 0; i < static_cast<std::size_t>(CamIndex::Num); i++){
         if(impl_->cam[i].reset_gpio >= 0)
             sensor_power(impl_->cam[i].reset_gpio, 1);
     }
@@ -322,8 +322,8 @@ Status Pipeline::start(CamIndex first)
     if(!impl_->inited)
         return Status::ParamError;
 
-    const size_t a = static_cast<size_t>(first);
-    const size_t b = static_cast<size_t>(
+    const std::size_t a = static_cast<std::size_t>(first);
+    const std::size_t b = static_cast<std::size_t>(
         first == CamIndex::Right ? CamIndex::Left : CamIndex::Right);
 
     if(hbn_vflow_start(impl_->cam[a].vflow) != 0){
@@ -342,7 +342,7 @@ void Pipeline::stop()
     if(!impl_->inited)
         return;
 
-    for(size_t i = 0; i < static_cast<size_t>(CamIndex::Num); i++)
+    for(std::size_t i = 0; i < static_cast<std::size_t>(CamIndex::Num); i++)
         if(impl_->cam[i].vflow != 0)
             hbn_vflow_stop(impl_->cam[i].vflow);
 }
@@ -357,7 +357,7 @@ Status Pipeline::get_frame(CamIndex idx,
     if(y == nullptr || uv == nullptr || timestamp_ns == nullptr || !impl_->inited)
         return Status::ParamError;
 
-    const size_t i = static_cast<size_t>(idx);
+    const std::size_t i = static_cast<std::size_t>(idx);
     auto &c = impl_->cam[i];
 
     hbn_vnode_image_t img;
@@ -373,18 +373,12 @@ Status Pipeline::get_frame(CamIndex idx,
 
     // Copy row by row using each plane's stride
     for(uint32_t r = 0; r < height; ++r)
-        memcpy(y + (size_t)r * y_stride,
-               img.buffer.virt_addr[0] + (size_t)r * img.buffer.stride, width);
+        memcpy(y + (std::size_t)r * y_stride,
+               img.buffer.virt_addr[0] + (std::size_t)r * img.buffer.stride, width);
     for(uint32_t r = 0; r < height / 2; ++r)
-        memcpy(uv + (size_t)r * uv_stride,
-               img.buffer.virt_addr[1] + (size_t)r * img.buffer.stride, width);
+        memcpy(uv + (std::size_t)r * uv_stride,
+               img.buffer.virt_addr[1] + (std::size_t)r * img.buffer.stride, width);
 
-    fprintf(stderr, "[TV] frm=%u tv=%ld.%06ld trig=%ld.%06ld diff=%.3fms\n",
-            img.info.frame_id,
-            (long)img.info.tv.tv_sec, (long)img.info.tv.tv_usec,
-            (long)img.info.trig_tv.tv_sec, (long)img.info.trig_tv.tv_usec,
-            ((double)img.info.tv.tv_sec - img.info.trig_tv.tv_sec) * 1e3 +
-            ((double)img.info.tv.tv_usec - img.info.trig_tv.tv_usec) / 1e3);
     *timestamp_ns = frame_ts_ns(img.info);
 
     hbn_vnode_releaseframe(c.output_node, c.output_chn, &img);

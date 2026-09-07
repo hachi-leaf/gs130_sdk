@@ -1,9 +1,13 @@
 /**
+ * @file gdc.c
+ * @brief gdc node: apply +0.5/clamp/rotation to the map, encode it as a bin, then open the GDC vnode.
+ *
+ * map is a RemapPoint array (layout matches point_t, guaranteed by static_assert).
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
- *
- * gdc node: apply +0.5/clamp/rotation to the map, encode it as a bin, then open the GDC vnode.
- * map is a RemapPoint array (layout matches point_t, guaranteed by static_assert).
+ * See the LICENSE file in the project root for the full license text.
  */
 #include "rdkx5.h"
 

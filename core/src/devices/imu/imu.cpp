@@ -4,7 +4,7 @@
  */
 #include "devices/imu/imu.hpp"
 
-namespace gs130w {
+namespace gs130 {
 namespace imu {
 
 // IMU 型号声明
@@ -55,4 +55,4 @@ const char *Imu::name() const{return desc_->name;}
 const char *Imu::info() const{return desc_->info;}
 
 } // namespace imu
-} // namespace gs130w
+} // namespace gs130

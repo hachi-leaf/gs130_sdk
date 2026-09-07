@@ -5,14 +5,14 @@
  * 全 SDK 类型定义，统一放在此文件。
  * 只放数据类型，不放行为：各模块的 class 与 ModelDesc 留在自己的头文件里。
  */
-#ifndef GS130W_TYPES_HPP
-#define GS130W_TYPES_HPP
+#ifndef GS130_TYPES_HPP
+#define GS130_TYPES_HPP
 
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
-namespace gs130w {
+namespace gs130 {
 
 // ============================== 错误码 ==============================
 
@@ -140,6 +140,6 @@ enum class FifoMode {
     DropOld,   // 满则覆盖最旧数据
 };
 
-} // namespace gs130w
+} // namespace gs130
 
-#endif // GS130W_TYPES_HPP
+#endif // GS130_TYPES_HPP

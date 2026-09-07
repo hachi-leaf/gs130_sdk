@@ -1,4 +1,4 @@
-# GS130W SDK - Core library Makefile
+# GS130 SDK - Core library Makefile
 #
 #   make                      构建（默认 rdkx5 平台）
 #   make PLATFORM=rdks100      构建 S100 平台
@@ -52,7 +52,7 @@ C_SRCS = \
     src/devices/pipeline/rdkx5/flow.c
 
 CPP_SRCS = \
-    src/gs130w.cpp \
+    src/gs130.cpp \
     src/base/i2c/i2c.cpp \
     src/base/rectify/rectify.cpp \
     src/base/tracker/tracker.cpp \
@@ -67,10 +67,10 @@ CPP_OBJS = $(patsubst %.cpp,build/%.o,$(CPP_SRCS))
 OBJS = $(C_OBJS) $(CPP_OBJS)
 
 OUT_DIR = out
-LIB_STATIC = $(OUT_DIR)/libgs130w.a
-LIB_FULL   = $(OUT_DIR)/libgs130w.so.$(VERSION)
-LIB_SO_MAJOR = $(OUT_DIR)/libgs130w.so.$(VERSION_MAJOR)
-LIB_SHARED = $(OUT_DIR)/libgs130w.so
+LIB_STATIC = $(OUT_DIR)/libgs130.a
+LIB_FULL   = $(OUT_DIR)/libgs130.so.$(VERSION)
+LIB_SO_MAJOR = $(OUT_DIR)/libgs130.so.$(VERSION_MAJOR)
+LIB_SHARED = $(OUT_DIR)/libgs130.so
 
 all: lib
 
@@ -78,7 +78,7 @@ sample: $(OUT_DIR)/sample
 
 $(OUT_DIR)/sample: examples/sample.c $(LIB_FULL) | $(OUT_DIR)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o build/sample.o
-	$(CXX) build/sample.o -o $@ -L$(OUT_DIR) -lgs130w $(LDFLAGS) -lstdc++ -Wl,-rpath,$(shell pwd)/$(OUT_DIR)
+	$(CXX) build/sample.o -o $@ -L$(OUT_DIR) -lgs130 $(LDFLAGS) -lstdc++ -Wl,-rpath,$(shell pwd)/$(OUT_DIR)
 
 lib: $(LIB_STATIC) $(LIB_FULL)
 

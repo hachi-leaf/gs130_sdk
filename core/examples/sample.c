@@ -2,11 +2,11 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  *
- * sample — GS130W SDK demo: dual-cam + IMU, table display, Ctrl+C to quit.
+ * sample — GS130 SDK demo: dual-cam + IMU, table display, Ctrl+C to quit.
  *
  * Usage: ./sample [out_w=544] [out_h=640] [mode=2]  (mode: 0=RAW 1=RESIZE 2=RECT)
  */
-#include "gs130w.h"
+#include "gs130.h"
 
 #include <signal.h>
 #include <stdio.h>
@@ -25,7 +25,7 @@ static double now_s(void)
     return (double)t.tv_sec + (double)t.tv_nsec / 1e9;
 }
 
-static void print_cal(const gs130w_calibration_t *cal)
+static void print_cal(const gs130_calibration_t *cal)
 {
     printf("\n---------- Calibration ----------\n");
     printf("install_angle = %d deg\n\n", cal->camera_install_angle);
@@ -36,17 +36,17 @@ static void print_cal(const gs130w_calibration_t *cal)
     printf("| cam_right | %11.4f | %11.4f | %11.4f | %11.4f | %-8s |\n",
            cal->camera_right.fx, cal->camera_right.fy,
            cal->camera_right.cx, cal->camera_right.cy,
-           cal->camera_right.dist_model == GS130W_DIST_FISHEYE ? "FISHEYE" : "PINHOLE");
+           cal->camera_right.dist_model == GS130_DIST_FISHEYE ? "FISHEYE" : "PINHOLE");
     printf("| cam_left  | %11.4f | %11.4f | %11.4f | %11.4f | %-8s |\n",
            cal->camera_left.fx, cal->camera_left.fy,
            cal->camera_left.cx, cal->camera_left.cy,
-           cal->camera_left.dist_model == GS130W_DIST_FISHEYE ? "FISHEYE" : "PINHOLE");
+           cal->camera_left.dist_model == GS130_DIST_FISHEYE ? "FISHEYE" : "PINHOLE");
     printf("+-----------+-------------+-------------+-------------+-------------+----------+\n");
 
     for(int ci = 0; ci < 2; ci++){
-        const gs130w_camera_intrinsics_t *ck = (ci == 0) ? &cal->camera_right : &cal->camera_left;
+        const gs130_camera_intrinsics_t *ck = (ci == 0) ? &cal->camera_right : &cal->camera_left;
         const char *cn = (ci == 0) ? "cam_right" : "cam_left";
-        if(ck->dist_model == GS130W_DIST_FISHEYE)
+        if(ck->dist_model == GS130_DIST_FISHEYE)
             printf("dist[%s] k1=%+.6f k2=%+.6f k3=%+.6f k4=%+.6f\n",
                    cn, ck->dist_coeffs[0], ck->dist_coeffs[1],
                    ck->dist_coeffs[2], ck->dist_coeffs[3]);
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
     if(argc > 2){ out_w = (uint32_t)atoi(argv[1]); out_h = (uint32_t)atoi(argv[2]); }
     if(argc > 3) mode = atoi(argv[3]);
 
-    gs130w_config_t cfg;
+    gs130_config_t cfg;
     memset(&cfg, 0, sizeof(cfg));
 
     cfg.camera_config.bus[0] = 4; cfg.camera_config.bus[1] = 6;
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
     cfg.camera_config.fps = 30;
     cfg.camera_config.line_length  = 1400;
     cfg.camera_config.frame_length = 1500;
-    cfg.camera_config.mode = (gs130w_camera_mode_t)mode;
+    cfg.camera_config.mode = (gs130_camera_mode_t)mode;
     cfg.camera_config.output_width  = out_w;
     cfg.camera_config.output_height = out_h;
     memset(cfg.camera_config.bus_mipi_rx, 0xFF, sizeof(cfg.camera_config.bus_mipi_rx));
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
     for(int i = 0; i < 32; i++) cfg.camera_config.bus_reset_gpio[i] = -1;
     cfg.camera_config.bus_reset_gpio[4] = 351;
     cfg.camera_config.bus_reset_gpio[6] = 353;
-    cfg.camera_config.fsync_camera = GS130W_CAMERA_RIGHT_IDX;
+    cfg.camera_config.fsync_camera = GS130_CAMERA_RIGHT_IDX;
 
     cfg.imu_config.bus[0] = 4; cfg.imu_config.bus[1] = 6;
     cfg.imu_config.bus_num = 2;
@@ -138,17 +138,17 @@ int main(int argc, char **argv)
     cfg.eeprom_config.addr = 0x50;
 
     cfg.camera_fifo.depth = 4;
-    cfg.camera_fifo.mode  = GS130W_FIFO_DROP_OLD;
+    cfg.camera_fifo.mode  = GS130_FIFO_DROP_OLD;
     cfg.imu_fifo.depth = 1024;
-    cfg.imu_fifo.mode  = GS130W_FIFO_DROP_OLD;
+    cfg.imu_fifo.mode  = GS130_FIFO_DROP_OLD;
 
-    gs130w_device_t *dev = gs130w_create();
+    gs130_device_t *dev = gs130_create();
     if(!dev){ printf("FAIL: create\n"); return 1; }
-    if(gs130w_init(dev, &cfg) != GS130W_OK){ printf("FAIL: init\n"); gs130w_destroy(dev); return 1; }
-    if(gs130w_start(dev) != GS130W_OK){ printf("FAIL: start\n"); gs130w_deinit(dev); gs130w_destroy(dev); return 1; }
+    if(gs130_init(dev, &cfg) != GS130_OK){ printf("FAIL: init\n"); gs130_destroy(dev); return 1; }
+    if(gs130_start(dev) != GS130_OK){ printf("FAIL: start\n"); gs130_deinit(dev); gs130_destroy(dev); return 1; }
 
-    gs130w_calibration_t cal;
-    int has_cal = (gs130w_get_calibration(dev, &cal) == GS130W_OK);
+    gs130_calibration_t cal;
+    int has_cal = (gs130_get_calibration(dev, &cal) == GS130_OK);
 
     /* IMU 时间戳 dump 埋点：/tmp/imu_ts.txt，每行 "timestamp_ns fsync" */
     FILE *imu_dump = fopen("/tmp/imu_ts.txt", "w");
@@ -157,8 +157,8 @@ int main(int argc, char **argv)
     if(imu_dump) printf("IMU dump -> /tmp/imu_ts.txt\n");
 
     uint64_t cam_count = 0, imu_count = 0, fsync_count = 0;
-    gs130w_image_nv12_t img_l = {0}, img_r = {0};
-    gs130w_imu_packet_t imu_pkt = {0};
+    gs130_image_nv12_t img_l = {0}, img_r = {0};
+    gs130_imu_packet_t imu_pkt = {0};
     int has_cam = 0, has_imu = 0;
 
     uint64_t cam_ts_buf[50]  = {0}; int cam_ts_head = 0, cam_ts_cnt = 0;
@@ -167,10 +167,10 @@ int main(int argc, char **argv)
     double t0 = now_s();
 
     while(running){
-        while(gs130w_available_camera(dev) > 0){
+        while(gs130_available_camera(dev) > 0){
             free(img_l.y); free(img_l.uv); free(img_r.y); free(img_r.uv);
             img_l.y = img_l.uv = img_r.y = img_r.uv = NULL;
-            if(gs130w_get_nv12_frame(dev, &img_l, &img_r) != GS130W_OK)break;
+            if(gs130_get_nv12_frame(dev, &img_l, &img_r) != GS130_OK)break;
             cam_count++;
             has_cam = 1;
             cam_ts_buf[cam_ts_head] = img_r.timestamp_ns;
@@ -179,8 +179,8 @@ int main(int argc, char **argv)
             if(cam_dump) fprintf(cam_dump, "%llu\n", (unsigned long long)img_r.timestamp_ns);
         }
 
-        while(gs130w_available_imu(dev) > 0){
-            if(gs130w_read_imu(dev, &imu_pkt) != GS130W_OK)break;
+        while(gs130_available_imu(dev) > 0){
+            if(gs130_read_imu(dev, &imu_pkt) != GS130_OK)break;
             imu_count++;
             if(imu_pkt.is_fsync)fsync_count++;
             has_imu = 1;
@@ -211,7 +211,7 @@ int main(int argc, char **argv)
         double elapsed = now_s() - t0;
 
         printf("\033[2J\033[H");
-        printf("========== GS130W SDK | mode=%d out=%ux%u ==========\n", mode, out_w, out_h);
+        printf("========== GS130 SDK | mode=%d out=%ux%u ==========\n", mode, out_w, out_h);
         printf("run %.1f s | cam %llu pairs | imu %llu samples (%llu FSYNC)\n\n",
                elapsed, (unsigned long long)cam_count,
                (unsigned long long)imu_count, (unsigned long long)fsync_count);
@@ -274,8 +274,8 @@ int main(int argc, char **argv)
     if(imu_dump) fclose(imu_dump);
     if(cam_dump) fclose(cam_dump);
 
-    gs130w_stop(dev);
-    gs130w_deinit(dev);
-    gs130w_destroy(dev);
+    gs130_stop(dev);
+    gs130_deinit(dev);
+    gs130_destroy(dev);
     return 0;
 }

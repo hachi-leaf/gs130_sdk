@@ -4,8 +4,8 @@
  *
  * RDK X5 平台骨架：节点接口。无共享上下文，每个节点直接收所需资源。
  */
-#ifndef GS130W_PIPELINE_RDKX5_H
-#define GS130W_PIPELINE_RDKX5_H
+#ifndef GS130_PIPELINE_RDKX5_H
+#define GS130_PIPELINE_RDKX5_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -84,4 +84,4 @@ void teardown_cam(
 } /* extern "C" */
 #endif
 
-#endif /* GS130W_PIPELINE_RDKX5_H */
+#endif /* GS130_PIPELINE_RDKX5_H */

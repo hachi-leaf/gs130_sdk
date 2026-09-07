@@ -9,7 +9,7 @@
 
 #include <cstring>
 
-namespace gs130w {
+namespace gs130 {
 namespace eeprom {
 namespace {
 
@@ -181,4 +181,4 @@ extern const ModelDesc kUnionStereoImuFisheyeV1p2R0N4 = {
 };
 
 } // namespace eeprom
-} // namespace gs130w
+} // namespace gs130

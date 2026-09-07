@@ -12,7 +12,7 @@
 
 #include <vector>
 
-namespace gs130w {
+namespace gs130 {
 namespace imu {
 namespace {
 
@@ -261,4 +261,4 @@ extern const ModelDesc kIcm42688 = {
 };
 
 } // namespace imu
-} // namespace gs130w
+} // namespace gs130

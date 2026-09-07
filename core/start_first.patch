@@ -42,9 +42,9 @@ diff -ruN orig/src/devices/pipeline/rdkx5/rdkx5.cpp new/src/devices/pipeline/rdk
      }
      return Status::Ok;
  }
-diff -ruN orig/src/gs130w.cpp new/src/gs130w.cpp
---- orig/src/gs130w.cpp	2026-08-27 22:28:00.195533766 +0800
-+++ new/src/gs130w.cpp	2026-08-27 22:28:00.216044935 +0800
+diff -ruN orig/src/gs130.cpp new/src/gs130.cpp
+--- orig/src/gs130.cpp	2026-08-27 22:28:00.195533766 +0800
++++ new/src/gs130.cpp	2026-08-27 22:28:00.216044935 +0800
 @@ -145,7 +145,7 @@
      while(dev->running.load() && !dev->camera_on.load())usleep(1000);
      if(!dev->running.load())return;

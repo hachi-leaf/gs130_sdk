@@ -4,14 +4,14 @@
  *
  * I2C Wrapper, No Thread-safe
  */
-#ifndef GS130W_BASE_I2C_HPP
-#define GS130W_BASE_I2C_HPP
+#ifndef GS130_BASE_I2C_HPP
+#define GS130_BASE_I2C_HPP
 
 #include <cstdint>
 
 #include "types.hpp"
 
-namespace gs130w {
+namespace gs130 {
 namespace base {
 
 class I2cDevice {
@@ -47,6 +47,6 @@ private:
 };
 
 } // namespace base
-} // namespace gs130w
+} // namespace gs130
 
-#endif // GS130W_BASE_I2C_HPP
+#endif // GS130_BASE_I2C_HPP

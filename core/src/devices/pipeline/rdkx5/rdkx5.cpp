@@ -19,7 +19,7 @@
 #include <cstring>
 #include <vector>
 
-namespace gs130w {
+namespace gs130 {
 namespace pipeline {
 
 namespace {
@@ -392,4 +392,4 @@ Status Pipeline::get_frame(CamIndex idx,
 }
 
 } // namespace pipeline
-} // namespace gs130w
+} // namespace gs130

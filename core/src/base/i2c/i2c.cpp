@@ -11,7 +11,7 @@
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
 
-namespace gs130w {
+namespace gs130 {
 namespace base {
 
 I2cDevice::~I2cDevice()
@@ -177,4 +177,4 @@ Status I2cDevice::readBurst16(uint16_t reg, uint8_t *buf, uint32_t len) const
 }
 
 } // namespace base
-} // namespace gs130w
+} // namespace gs130

@@ -11,7 +11,7 @@
 #include <cmath>
 #include <cstring>
 
-namespace gs130w {
+namespace gs130 {
 namespace base {
 namespace {
 
@@ -326,4 +326,4 @@ Status stereo_rectify(StereoImuModel *cal,
 }
 
 } // namespace base
-} // namespace gs130w
+} // namespace gs130

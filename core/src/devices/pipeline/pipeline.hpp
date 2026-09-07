@@ -2,8 +2,8 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  */
-#ifndef GS130W_DEVICES_PIPELINE_PIPELINE_HPP
-#define GS130W_DEVICES_PIPELINE_PIPELINE_HPP
+#ifndef GS130_DEVICES_PIPELINE_PIPELINE_HPP
+#define GS130_DEVICES_PIPELINE_PIPELINE_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -11,7 +11,7 @@
 
 #include "types.hpp"
 
-namespace gs130w {
+namespace gs130 {
 namespace pipeline {
 
 // 双目 pipeline。平台实现在编译期由 -D 宏选定（各平台 SDK 头文件互不共存），
@@ -47,6 +47,6 @@ private:
 };
 
 } // namespace pipeline
-} // namespace gs130w
+} // namespace gs130
 
-#endif // GS130W_DEVICES_PIPELINE_PIPELINE_HPP
+#endif // GS130_DEVICES_PIPELINE_PIPELINE_HPP

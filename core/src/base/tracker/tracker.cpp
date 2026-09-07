@@ -6,7 +6,7 @@
 #include "base/tracker/tracker.hpp"
 #include <cstdio>
 
-namespace gs130w {
+namespace gs130 {
 namespace base {
 
 TimestampTracker::TimestampTracker(uint32_t master_cycle_ns)
@@ -141,4 +141,4 @@ void TimestampTracker::clear_ready()
 }
 
 } // namespace base
-} // namespace gs130w
+} // namespace gs130

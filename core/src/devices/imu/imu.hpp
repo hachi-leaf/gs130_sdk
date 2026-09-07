@@ -2,8 +2,8 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  */
-#ifndef GS130W_DEVICES_IMU_IMU_HPP
-#define GS130W_DEVICES_IMU_IMU_HPP
+#ifndef GS130_DEVICES_IMU_IMU_HPP
+#define GS130_DEVICES_IMU_IMU_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -11,7 +11,7 @@
 #include "base/i2c/i2c.hpp"
 #include "types.hpp"
 
-namespace gs130w {
+namespace gs130 {
 namespace imu {
 
 // 型号描述表：每个型号实现自己的一套操作，拿到的是已绑定总线与地址的 I2C 读写器。
@@ -64,6 +64,6 @@ private:
 };
 
 } // namespace imu
-} // namespace gs130w
+} // namespace gs130
 
-#endif // GS130W_DEVICES_IMU_IMU_HPP
+#endif // GS130_DEVICES_IMU_IMU_HPP

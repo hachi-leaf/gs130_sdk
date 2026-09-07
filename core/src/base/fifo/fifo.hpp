@@ -4,8 +4,8 @@
  * 
  * Software Fifo, Thread-safe, header-only
  */
-#ifndef GS130W_BASE_FIFO_HPP
-#define GS130W_BASE_FIFO_HPP
+#ifndef GS130_BASE_FIFO_HPP
+#define GS130_BASE_FIFO_HPP
 
 #include <cstddef>
 #include <memory>
@@ -14,7 +14,7 @@
 
 #include "types.hpp"
 
-namespace gs130w {
+namespace gs130 {
 namespace base {
 
 
@@ -121,6 +121,6 @@ private:
 };
 
 } // namespace base
-} // namespace gs130w
+} // namespace gs130
 
-#endif // GS130W_BASE_FIFO_HPP
+#endif // GS130_BASE_FIFO_HPP

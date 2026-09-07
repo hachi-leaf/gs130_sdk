@@ -4,7 +4,7 @@
  */
 #include "devices/eeprom/eeprom.hpp"
 
-namespace gs130w {
+namespace gs130 {
 namespace eeprom {
 
 // EEPROM 型号声明
@@ -40,4 +40,4 @@ const char *Eeprom::name() const{return desc_->name;}
 const char *Eeprom::info() const{return desc_->info;}
 
 } // namespace eeprom
-} // namespace gs130w
+} // namespace gs130

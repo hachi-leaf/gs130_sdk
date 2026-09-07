@@ -4,15 +4,15 @@
  *
  * Binocular stereo correction
  */
-#ifndef GS130W_BASE_RECTIFY_HPP
-#define GS130W_BASE_RECTIFY_HPP
+#ifndef GS130_BASE_RECTIFY_HPP
+#define GS130_BASE_RECTIFY_HPP
 
 #include <cstdint>
 #include <vector>
 
 #include "types.hpp"
 
-namespace gs130w {
+namespace gs130 {
 namespace base {
 
 // 双目立体校正：自动寻找最大 Map + 缩放系数
@@ -35,6 +35,6 @@ Status stereo_rectify(StereoImuModel *cal,
                       std::vector<RemapPoint> *right_map);
 
 } // namespace base
-} // namespace gs130w
+} // namespace gs130
 
-#endif // GS130W_BASE_RECTIFY_HPP
+#endif // GS130_BASE_RECTIFY_HPP

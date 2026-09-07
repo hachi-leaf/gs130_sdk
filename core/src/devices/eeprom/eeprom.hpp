@@ -2,15 +2,15 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  */
-#ifndef GS130W_DEVICES_EEPROM_EEPROM_HPP
-#define GS130W_DEVICES_EEPROM_EEPROM_HPP
+#ifndef GS130_DEVICES_EEPROM_EEPROM_HPP
+#define GS130_DEVICES_EEPROM_EEPROM_HPP
 
 #include <cstdint>
 
 #include "base/i2c/i2c.hpp"
 #include "types.hpp"
 
-namespace gs130w {
+namespace gs130 {
 namespace eeprom {
 
 // 型号描述表：每个型号实现自己的探测与解析，拿到的是已绑定总线与地址的 I2C 读写器。
@@ -49,6 +49,6 @@ private:
 };
 
 } // namespace eeprom
-} // namespace gs130w
+} // namespace gs130
 
-#endif // GS130W_DEVICES_EEPROM_EEPROM_HPP
+#endif // GS130_DEVICES_EEPROM_EEPROM_HPP

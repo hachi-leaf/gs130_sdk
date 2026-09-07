@@ -4,15 +4,15 @@
  *
  * Master-Slave Timestamp Tracker, Thread-safe
  */
-#ifndef GS130W_BASE_TRACKER_HPP
-#define GS130W_BASE_TRACKER_HPP
+#ifndef GS130_BASE_TRACKER_HPP
+#define GS130_BASE_TRACKER_HPP
 
 #include <cstdint>
 #include <memory>
 #include <mutex>
 #include <vector>
 
-namespace gs130w {
+namespace gs130 {
 namespace base {
 
 class TimestampTracker {
@@ -98,6 +98,6 @@ private:
 };
 
 } // namespace base
-} // namespace gs130w
+} // namespace gs130
 
-#endif // GS130W_BASE_TRACKER_HPP
+#endif // GS130_BASE_TRACKER_HPP

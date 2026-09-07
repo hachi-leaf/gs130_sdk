@@ -1,8 +1,11 @@
 /**
+ * @file fifo.hpp
+ * @brief Bounded, thread-safe software FIFO (header-only).
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
- * 
- * Software Fifo, Thread-safe, header-only
+ * See the LICENSE file in the project root for the full license text.
  */
 #ifndef GS130_BASE_FIFO_HPP
 #define GS130_BASE_FIFO_HPP
@@ -10,6 +13,7 @@
 #include <cstddef>
 #include <memory>
 #include <mutex>
+#include <utility>
 #include <vector>
 
 #include "types.hpp"
@@ -17,11 +21,10 @@
 namespace gs130 {
 namespace base {
 
-
 template <typename T>
 class Fifo {
 public:
-    Fifo(size_t depth, FifoMode mode): 
+    Fifo(std::size_t depth, FifoMode mode): 
         mode_(mode), buf_(depth), valid_(depth >= 2),
         mtx_(std::make_unique<std::mutex>())
     {    
@@ -54,20 +57,18 @@ public:
         return *this;
     }
 
-    explicit operator bool() const { return valid_; }
+    explicit operator bool() const {return valid_;}
 
     bool push(const T &item)
     {
         if(!valid_) return false;
         std::lock_guard<std::mutex> lock(*mtx_);
         if(full_unlocked()){
-            if(mode_ == FifoMode::DropNew)
-                return false;
+            if(mode_ == FifoMode::DropNew)return false;
             tail_ = (tail_ + 1) % buf_.size();   // overwrite the oldest
         }
-        else{
-            ++count_;
-        }
+        else ++count_;
+
         buf_[head_] = item;
         head_ = (head_ + 1) % buf_.size();
         return true;
@@ -75,7 +76,7 @@ public:
 
     bool pop(T &item)
     {
-        if(!valid_) return false;
+        if(!valid_)return false;
         std::lock_guard<std::mutex> lock(*mtx_);
         if(count_ == 0)
             return false;
@@ -85,38 +86,38 @@ public:
         return true;
     }
 
-    size_t size() const
+    std::size_t size() const
     {
-        if(!valid_) return 0;
+        if(!valid_)return 0;
         std::lock_guard<std::mutex> lock(*mtx_);
         return count_;
     }
 
     bool empty() const
     {
-        if(!valid_) return true;
+        if(!valid_)return true;
         std::lock_guard<std::mutex> lock(*mtx_);
         return count_ == 0;
     }
 
     bool full() const
     {
-        if(!valid_) return false;
+        if(!valid_)return false;
         std::lock_guard<std::mutex> lock(*mtx_);
         return full_unlocked();
     }
 
-    size_t capacity() const { return buf_.size(); }
+    std::size_t capacity() const {return buf_.size();}
 
 private:
-    bool full_unlocked() const { return count_ == buf_.size(); }
+    bool full_unlocked() const {return count_ == buf_.size();}
 
-    FifoMode                 mode_;
-    std::vector<T>           buf_;
-    size_t              head_  = 0;
-    size_t              tail_  = 0;
-    size_t              count_ = 0;
-    bool                     valid_;
+    FifoMode mode_;
+    std::vector<T> buf_;
+    std::size_t head_ = 0;
+    std::size_t tail_ = 0;
+    std::size_t count_ = 0;
+    bool valid_;
     std::unique_ptr<std::mutex> mtx_;
 };
 

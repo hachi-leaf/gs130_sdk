@@ -2,7 +2,7 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  *
- * UNION EEPROM: stereo + IMU, fisheye, v1.2, rotation 0°, 4 distortion coefficients.
+ * UNION EEPROM: stereo + IMU, fisheye, v1.2, rotation 0 deg, 4 distortion coefficients.
  * This file is self-contained: header, checksum, offsets, and field widths are all local; no code is shared with other models.
  */
 #include "devices/eeprom/eeprom.hpp"
@@ -22,7 +22,7 @@ constexpr uint8_t kHeader[kHeaderSize] = {
     0x55, 0x4e, 0x49, 0x4f, 0x4e, 0x00, 0x00, 0x00,  // "UNION"
     0x11, 0x01,   // stereo + IMU
     0x01, 0x02,   // v1.2
-    0x00,         // rotation 0°
+    0x00,         // rotation 0 deg
     0x04,         // 4 distortion coefficients
     0x00,
 };

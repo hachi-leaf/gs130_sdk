@@ -2,7 +2,7 @@
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
  *
- * sample — GS130 SDK demo: dual-cam + IMU, table display, Ctrl+C to quit.
+ * sample - GS130 SDK demo: dual-cam + IMU, table display, Ctrl+C to quit.
  *
  * Usage: ./sample [out_w=544] [out_h=640] [mode=2]  (mode: 0=RAW 1=RESIZE 2=RECT)
  */

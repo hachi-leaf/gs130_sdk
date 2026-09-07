@@ -99,13 +99,13 @@ struct ImuIntrinsics {
     double accel_misalign[9];    // cross-axis coupling 3x3
     double accel_scale[3];
     double accel_bias[3];
-    double accel_noise;          // m/s²/√Hz
-    double accel_random_walk;    // m/s³/√Hz
+    double accel_noise;          // m/s^2/sqrt(Hz)
+    double accel_random_walk;    // m/s^3/sqrt(Hz)
     double gyro_misalign[9];
     double gyro_scale[3];
     double gyro_bias[3];
-    double gyro_noise;           // rad/s/√Hz
-    double gyro_random_walk;     // rad/s²/√Hz
+    double gyro_noise;           // rad/s/sqrt(Hz)
+    double gyro_random_walk;     // rad/s^2/sqrt(Hz)
 };
 
 // Each of the three extrinsic sets is a "sensor frame -> common reference frame"

@@ -173,7 +173,7 @@ double find_best_fov_scale(DistModel model,
     return best;
 }
 
-// Right-camera pose in the left-camera frame: R_r2l = lR·rRᵀ, t_r2l = lT - R_r2l·rT
+// Right-camera pose in the left-camera frame: R_r2l = lR*rR^T, t_r2l = lT - R_r2l*rT
 void relative_pose(const double *lR, const double *lT,
                    const double *rR, const double *rT,
                    cv::Mat &R_r2l, cv::Mat &t_r2l)
@@ -224,7 +224,7 @@ void fill_map(std::vector<RemapPoint> *dst,
     }
 }
 
-// Virtual calibration write-back: zero distortion, shared focal, centered principal point, R = original R × rect_Rᵀ, T kept unchanged.
+// Virtual calibration write-back: zero distortion, shared focal, centered principal point, R = original R * rect_R^T, T kept unchanged.
 // orig_R and the target R may alias the same memory, so clone the original R before writing back.
 void write_virtual(CameraIntrinsics *k, double *R,
                    const double *orig_R,

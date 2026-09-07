@@ -134,9 +134,9 @@ gs130_err_t gs130_get_nv12_frame(
 /* ==================== IMU Data ==================== */
 
 typedef struct gs130_imu_packet_s{
-    float accel[3]; /* m/s² */
+    float accel[3]; /* m/s^2 */
     float gyro[3]; /* rad/s */
-    float temp; /* °C */
+    float temp; /* degC */
     bool  is_fsync; /* this packet is an FSYNC sync packet */
     uint64_t timestamp_ns; /* corrected absolute timestamp (aligned to the camera clock) */
 }gs130_imu_packet_t;
@@ -165,13 +165,13 @@ typedef struct gs130_imu_intrinsics_s{
     double accel_misalign[9];
     double accel_scale[3];
     double accel_bias[3];
-    double accel_noise;          /* m/s²/√Hz */
-    double accel_random_walk;    /* m/s³/√Hz */
+    double accel_noise;          /* m/s^2/sqrt(Hz) */
+    double accel_random_walk;    /* m/s^3/sqrt(Hz) */
     double gyro_misalign[9];
     double gyro_scale[3];
     double gyro_bias[3];
-    double gyro_noise;           /* rad/s/√Hz */
-    double gyro_random_walk;     /* rad/s²/√Hz */
+    double gyro_noise;           /* rad/s/sqrt(Hz) */
+    double gyro_random_walk;     /* rad/s^2/sqrt(Hz) */
 }gs130_imu_intrinsics_t;
 
 /* Extrinsics are transforms from each sensor frame to the common reference frame: p_ref = R*p_sensor + T */

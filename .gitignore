@@ -8,6 +8,9 @@ core/out/
 *.so
 *.so.*
 
+# runtime files
+*.bin
+
 # Editor / OS noise
 *.swp
 *~

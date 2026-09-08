@@ -1,36 +1,15 @@
 # GS130 SDK - Core library Makefile
 #
-#   make                      Build (default rdkx5 platform)
-#   make PLATFORM=rdks100      Build for the S100 platform
-#   make PLATFORM=rdks600      Build for the S600 platform
-#   make sample                Build the sample program
-#   make clean                 Clean
+#   make                      build the library (default platform: rdkx5)
+#   make rdkx5                build for RDK X5 (same as a bare make)
+#   make rdks100              build for S100
+#   make rdks600              build for S600
+#   make sample               build the sample program
+#   make clean                clean
 
-# Platform selection: rdkx5 / rdks100 / rdks600
-PLATFORM ?= rdkx5
+# ---- Dependencies ----
 
-ifeq ($(PLATFORM),rdkx5)
-PLATFORM_DEF = -DRDKX5_RUNTIME
-else ifeq ($(PLATFORM),rdks100)
-PLATFORM_DEF = -DRDKS100_RUNTIME
-else ifeq ($(PLATFORM),rdks600)
-PLATFORM_DEF = -DRDKS600_RUNTIME
-else
-$(error Unknown platform: PLATFORM=$(PLATFORM), choose rdkx5 / rdks100 / rdks600)
-endif
-
-VERSION := $(shell cat ../VERSION)
-VERSION_MAJOR := $(shell echo $(VERSION) | cut -d. -f1)
-
-CC  = gcc
-CXX = g++
-
-COMMON_FLAGS = -Wall -Wextra -O2 -g -fPIC
-CFLAGS   = $(COMMON_FLAGS) -std=gnu11
-CXXFLAGS = $(COMMON_FLAGS) -std=gnu++17 $(PLATFORM_DEF)
-INCLUDES = -Iinclude -Isrc -I/usr/include/opencv4
-
-# OpenCV static link (self-contained, no runtime .so dependency)
+# OpenCV static linking (self-contained; no runtime .so dependency)
 OPENCV_LIBS := -Wl,--start-group \
     /usr/lib/aarch64-linux-gnu/libopencv_calib3d.a \
     /usr/lib/aarch64-linux-gnu/libopencv_features2d.a \
@@ -39,56 +18,98 @@ OPENCV_LIBS := -Wl,--start-group \
     /usr/lib/aarch64-linux-gnu/libopencv_imgproc.a \
     -Wl,--end-group
 
-LDFLAGS = -L/usr/hobot/lib
-LIBS = -lvpf -lhbmem -lcam -lm -lpthread -lrt $(OPENCV_LIBS) \
-       -lz /usr/lib/aarch64-linux-gnu/libtbb.so.2 -ldl
+# Horizon runtime libraries (dynamic linking)
+HBN_LIB_DIR := /usr/hobot/lib
+HBN_LIBS    := -lvpf -lhbmem -lcam
 
-C_SRCS = \
-    src/devices/pipeline/rdkx5/camera.c \
-    src/devices/pipeline/rdkx5/vin.c \
-    src/devices/pipeline/rdkx5/isp.c \
-    src/devices/pipeline/rdkx5/vse.c \
-    src/devices/pipeline/rdkx5/gdc.c \
-    src/devices/pipeline/rdkx5/flow.c
+# ---- Platform ----
 
-CPP_SRCS = \
-    src/gs130.cpp \
-    src/base/i2c/i2c.cpp \
-    src/base/rectify/rectify.cpp \
-    src/base/tracker/tracker.cpp \
-    src/devices/eeprom/eeprom.cpp \
-    src/devices/eeprom/union_stereo_imu_fisheye_v1p2r0n4.cpp \
-    src/devices/imu/imu.cpp \
-    src/devices/imu/icm42688.cpp \
-    src/devices/pipeline/pipeline.cpp
+PLATFORM ?= rdkx5
+ifeq ($(PLATFORM),rdkx5)
+PLATFORM_DEF = -DRDKX5_RUNTIME
+else ifeq ($(PLATFORM),rdks100)
+PLATFORM_DEF = -DRDKS100_RUNTIME
+else ifeq ($(PLATFORM),rdks600)
+PLATFORM_DEF = -DRDKS600_RUNTIME
+else
+$(error unknown platform: PLATFORM=$(PLATFORM), choose rdkx5 / rdks100 / rdks600)
+endif
 
-C_OBJS   = $(patsubst %.c,build/%.o,$(C_SRCS))
-CPP_OBJS = $(patsubst %.cpp,build/%.o,$(CPP_SRCS))
-OBJS = $(C_OBJS) $(CPP_OBJS)
+# ---- Toolchain ----
 
-OUT_DIR = out
-LIB_STATIC = $(OUT_DIR)/libgs130.a
-LIB_FULL   = $(OUT_DIR)/libgs130.so.$(VERSION)
+CC  = gcc
+CXX = g++
+
+# ---- Flags ----
+
+COMMON_FLAGS = -Wall -Wextra -O2 -g -fPIC
+CFLAGS   = $(COMMON_FLAGS) -std=gnu11
+CXXFLAGS = $(COMMON_FLAGS) -std=gnu++17 $(PLATFORM_DEF)
+INCLUDES = -Iinclude -Isrc -I/usr/include/opencv4
+LDFLAGS  = -L$(HBN_LIB_DIR)
+LIBS     = $(HBN_LIBS) -lm -lpthread -lrt $(OPENCV_LIBS) \
+           -lz /usr/lib/aarch64-linux-gnu/libtbb.so.2 -ldl
+
+# ---- Sources ----
+
+# source path -> object path under build/  (.c and .cpp both -> build/....o)
+to_obj = $(patsubst %.cpp,build/%.o,$(patsubst %.c,build/%.o,$1))
+
+# auto-discovered.
+# NOTE: a platform .cpp under pipeline/<platform>/ (e.g. rdkx5.cpp) is #included by
+#       pipeline.cpp (single-TU dispatch), so it must NOT be compiled as a separate object.
+#       The .c node files in those dirs ARE compiled normally.
+C_SRCS   := $(shell find src -type f -name '*.c')
+CPP_SRCS := $(shell find src -type f -name '*.cpp' ! -path '*/devices/pipeline/*/*.cpp')
+OBJS     := $(call to_obj,$(C_SRCS) $(CPP_SRCS))
+
+# ---- Outputs ----
+
+VERSION       := $(shell cat ../VERSION)
+VERSION_MAJOR := $(shell echo $(VERSION) | cut -d. -f1)
+
+OUT_DIR      = out
+LIB_STATIC   = $(OUT_DIR)/libgs130.a
+LIB_FULL     = $(OUT_DIR)/libgs130.so.$(VERSION)
 LIB_SO_MAJOR = $(OUT_DIR)/libgs130.so.$(VERSION_MAJOR)
-LIB_SHARED = $(OUT_DIR)/libgs130.so
+LIB_SHARED   = $(OUT_DIR)/libgs130.so
+
+# ---- Targets ----
 
 all: lib
 
-sample: $(OUT_DIR)/sample
+# platform selection shortcuts (a bare 'make' builds rdkx5 by default)
+.PHONY: rdkx5 rdks100 rdks600
 
-$(OUT_DIR)/sample: examples/sample.c $(LIB_FULL) | $(OUT_DIR)
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o build/sample.o
-	$(CXX) build/sample.o -o $@ -L$(OUT_DIR) -lgs130 $(LDFLAGS) -lstdc++ -Wl,-rpath,$(shell pwd)/$(OUT_DIR)
+rdkx5:
+	@$(MAKE) PLATFORM=rdkx5
+
+rdks100:
+	@$(MAKE) PLATFORM=rdks100
+
+rdks600:
+	@$(MAKE) PLATFORM=rdks600
 
 lib: $(LIB_STATIC) $(LIB_FULL)
 
-$(LIB_STATIC): $(OBJS) | $(OUT_DIR)
+sample: $(OUT_DIR)/sample
+
+$(OUT_DIR)/sample: examples/sample.c $(LIB_FULL)
+	@mkdir -p build $(OUT_DIR)
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o build/sample.o
+	$(CXX) build/sample.o -o $@ -L$(OUT_DIR) -lgs130 $(LDFLAGS) -lstdc++ -Wl,-rpath,$(CURDIR)/$(OUT_DIR)
+
+$(LIB_STATIC): $(OBJS)
+	@mkdir -p $(OUT_DIR)
 	ar rcs $@ $^
 
-$(LIB_FULL): $(OBJS) | $(OUT_DIR)
-	$(CXX) -shared $^ -o $@ $(LDFLAGS) $(LIBS) -Wl,-rpath,/usr/hobot/lib
+$(LIB_FULL): $(OBJS)
+	@mkdir -p $(OUT_DIR)
+	$(CXX) -shared $^ -o $@ $(LDFLAGS) $(LIBS) -Wl,-rpath,$(HBN_LIB_DIR)
 	@ln -sf $(notdir $(LIB_FULL)) $(LIB_SO_MAJOR)
 	@ln -sf $(notdir $(LIB_SO_MAJOR)) $(LIB_SHARED)
+
+# ---- Rules ----
 
 build/%.o: %.c
 	@mkdir -p $(dir $@)
@@ -98,10 +119,36 @@ build/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-$(OUT_DIR):
-	@mkdir -p $@
+# ---- Clean ----
 
 clean:
 	rm -rf build out
 
-.PHONY: all lib clean
+.PHONY: all lib sample clean
+
+# ---- Per-module targets ----
+# Compile a single module on demand; 'base' / 'devices' build their whole group.
+# Sources are auto-discovered, so adding a file needs no Makefile edit.
+
+# base module
+.PHONY: base fifo i2c rectify tracker
+
+base:    fifo i2c rectify tracker
+
+fifo:                          # header-only, nothing to compile
+	@echo "fifo: header-only, nothing to compile"
+
+i2c:     $(call to_obj,$(wildcard src/base/i2c/*.cpp))
+rectify: $(call to_obj,$(wildcard src/base/rectify/*.cpp))
+tracker: $(call to_obj,$(wildcard src/base/tracker/*.cpp))
+
+# devices module
+.PHONY: devices eeprom imu pipeline
+
+devices: eeprom imu pipeline
+
+eeprom:   $(call to_obj,$(wildcard src/devices/eeprom/*.cpp))
+imu:      $(call to_obj,$(wildcard src/devices/imu/*.cpp))
+# pipeline recurses into the rdkx5 platform subtree;
+# platform .cpp is #included by pipeline.cpp, so exclude subdir .cpp (keep subdir .c)
+pipeline: $(call to_obj,$(shell find src/devices/pipeline -type f \( -name '*.cpp' -o -name '*.c' \) ! -path '*/devices/pipeline/*/*.cpp'))

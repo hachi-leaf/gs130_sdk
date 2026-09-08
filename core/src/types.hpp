@@ -1,16 +1,16 @@
 /**
+ * @file types.hpp
+ * @brief Internal CPP types.
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
  * Copyright (c) 2026 D-Robotics.
  * SPDX-License-Identifier: MIT
- *
- * SDK-wide type definitions, all collected in this file.
- * Data types only, no behavior: each module's class and ModelDesc stay in its own header.
+ * See the LICENSE file in the project root for the full license text.
  */
 #ifndef GS130_TYPES_HPP
 #define GS130_TYPES_HPP
 
-#include <cstddef>
 #include <cstdint>
-#include <vector>
 
 namespace gs130 {
 
@@ -23,6 +23,7 @@ enum class Status {
     NotFound,       // device or model not detected
     HwError,        // low-level communication or driver failure
     Timeout,        // wait timed out
+    ThreadClosed,   // threads closed or never started
 };
 
 // ============================== Camera & output ==============================

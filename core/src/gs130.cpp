@@ -329,6 +329,19 @@ free_frame:
     }
 }
 
+// stop the worker threads; the caller must hold dev->mtx
+static void stop_locked(gs130_device_t *dev)
+{
+    Status expected = Status::Ok;
+    dev->state.compare_exchange_strong(expected, Status::ThreadClosed);
+
+    if(!dev->camera_thread.joinable() && !dev->imu_thread.joinable())return;   // never started
+    if(dev->camera_thread.joinable())dev->camera_thread.join();
+    if(dev->imu_thread.joinable())dev->imu_thread.join();
+    dev->pipeline->stop();
+    if(dev->imu)dev->imu->stop();
+}
+
 /* ---- Public C API (skeleton) ---- */
 
 extern "C" {
@@ -462,7 +475,7 @@ gs130_err_t gs130_deinit(
     if(dev == nullptr)return GS130_PARAM_ERROR;
     std::lock_guard<std::mutex> lock(dev->mtx);
 
-    gs130_stop(dev);   // joins the threads if they are running
+    stop_locked(dev);   // joins the threads if they are running (dev->mtx already held)
 
     dev->state.store(Status::ThreadClosed);   // clear any latched fault so the device can be re-initialized
     dev->pipeline.reset();   // triggers destructor: tear down stream + restore sensor power-on state
@@ -504,16 +517,7 @@ void gs130_stop(
 {
     if(dev == nullptr)return;
     std::lock_guard<std::mutex> lock(dev->mtx);
-
-    // tell the threads to exit; a latched fault (if any) is preserved
-    Status expected = Status::Ok;
-    dev->state.compare_exchange_strong(expected, Status::ThreadClosed);
-
-    if(!dev->camera_thread.joinable() && !dev->imu_thread.joinable())return;   // never started
-    if(dev->camera_thread.joinable())dev->camera_thread.join();
-    if(dev->imu_thread.joinable())dev->imu_thread.join();
-    dev->pipeline->stop();
-    if(dev->imu)dev->imu->stop();
+    stop_locked(dev);
 }
 
 /* ---- Camera data ---- */

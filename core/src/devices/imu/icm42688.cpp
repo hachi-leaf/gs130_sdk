@@ -243,22 +243,22 @@ extern const ModelDesc kIcm42688 = {
     kWhoAmI,
     0x47,
     "ICM-42688-P",
-    "    odr:       200 | 500 Hz\n"
-    "    accel fsr: 2 | 4 | 8 | 16 g\n"
-    "    gyro fsr:  250 | 500 | 1000 | 2000 dps\n"
-    "    bw_sel: 0..F\n"
-    "    - 0 BW=ODR/2\n"
-    "    - 1 BW=max(400Hz, ODR)/4\n"
-    "    - 2 BW=max(400Hz, ODR)/5\n"
-    "    - 3 BW=max(400Hz, ODR)/8\n"
-    "    - 4 BW=max(400Hz, ODR)/10\n"
-    "    - 5 BW=max(400Hz, ODR)/16\n"
-    "    - 6 BW=max(400Hz, ODR)/20\n"
-    "    - 7 BW=max(400Hz, ODR)/40\n"
-    "    - 8 to 13: Reserved\n"
-    "    - 14 Low Latency option: Trivial decimation @ ODR of Dec2 filter output. Dec2 runs at max(400Hz, ODR)\n"
-    "    - 15 Low Latency option: Trivial decimation @ ODR of Dec2 filter output. Dec2 runs at max(200Hz, 8*ODR)\n"
-    "    - noise density: accel 70 ug/rtHz, gyro 0.0028 dps/rtHz\n",
+    "- odr:       200 | 500 Hz\n"
+    "- accel fsr: 2 | 4 | 8 | 16 g\n"
+    "- gyro fsr:  250 | 500 | 1000 | 2000 dps\n"
+    "- bw_sel: 0..F\n"
+    "  - 0 BW=ODR/2\n"
+    "  - 1 BW=max(400Hz, ODR)/4\n"
+    "  - 2 BW=max(400Hz, ODR)/5\n"
+    "  - 3 BW=max(400Hz, ODR)/8\n"
+    "  - 4 BW=max(400Hz, ODR)/10\n"
+    "  - 5 BW=max(400Hz, ODR)/16\n"
+    "  - 6 BW=max(400Hz, ODR)/20\n"
+    "  - 7 BW=max(400Hz, ODR)/40\n"
+    "  - 8 to 13: Reserved\n"
+    "  - 14 Low Latency option: Trivial decimation @ ODR of Dec2 filter output. Dec2 runs at max(400Hz, ODR)\n"
+    "  - 15 Low Latency option: Trivial decimation @ ODR of Dec2 filter output. Dec2 runs at max(200Hz, 8*ODR)\n"
+    "- noise density: accel 70 ug/rtHz, gyro 0.0028 dps/rtHz\n",
     init,
     start,
     stop,

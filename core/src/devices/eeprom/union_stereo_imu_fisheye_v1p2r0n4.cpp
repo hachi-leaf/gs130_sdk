@@ -178,11 +178,11 @@ Status read(base::I2cDevice &bus, StereoImuModel *out)
 
 extern const ModelDesc kUnionStereoImuFisheyeV1p2R0N4 = {
     "UNION Stereo-IMU Fisheye V1.2 Rotate-0-deg 4-Distortion-parameters",
-    "   Calibration manufacturer:    UNION IMAGE\n"
-    "   Distortion model:            Fisheyes-4-parameters,\n"
-    "   Calibration version:         V1.2\n"
-    "   Device Type:                 Stereo Camera and IMU\n"
-    "   Rotating installation angle: 0 degrees\n",
+    "- Calibration manufacturer:    UNION IMAGE\n"
+    "- Distortion model:            Fisheyes-4-parameters,\n"
+    "- Calibration version:         V1.2\n"
+    "- Device Type:                 Stereo Camera and IMU\n"
+    "- Rotating installation angle: 0 degrees\n",
     probe,
     read,
 };  

@@ -333,6 +333,24 @@ free_frame:
 
 extern "C" {
 
+#ifndef GS130_VERSION
+#  define GS130_VERSION "unknown"
+#endif
+
+const char *gs130_version(void)
+{
+    return GS130_VERSION;
+}
+
+#ifndef GS130_PLATFORM
+#  define GS130_PLATFORM "unknown"
+#endif
+
+const char *gs130_platform(void)
+{
+    return GS130_PLATFORM;
+}
+
 gs130_device_t *gs130_create()
 {
     return new gs130_device_t;   // state starts at GS130_THREAD_CLOSED

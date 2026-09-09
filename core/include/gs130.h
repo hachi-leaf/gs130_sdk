@@ -122,6 +122,20 @@ typedef struct gs130_config_s{
 typedef struct gs130_device_s gs130_device_t;
 
 /**
+ * @brief SDK 版本号。
+ *
+ * @return 版本字符串（如 "0.0.1"）；静态存储，无需释放。
+ */
+const char *gs130_version(void);
+
+/**
+ * @brief 编译平台信息字符串。
+ *
+ * @return 平台名（如 "rdkx5"），来自编译期目录名；静态存储，无需释放。
+ */
+const char *gs130_platform(void);
+
+/**
  * @brief 创建设备句柄（空壳，需再调用 gs130_init 完成初始化）。
  *
  * @return 设备句柄；使用完毕后由 gs130_destroy() 释放。

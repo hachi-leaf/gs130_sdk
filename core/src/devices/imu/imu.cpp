@@ -9,31 +9,40 @@
  */
 #include "devices/imu/imu.hpp"
 
+#include <vector>
+
 namespace gs130 {
 namespace imu {
 
-extern const ModelDesc kIcm42688;
-
 namespace {
 
-const ModelDesc *const kModelTable[] = {
-    &kIcm42688,
-    nullptr,
-};
+// Auto-populated model registry: each model file self-registers via
+// GS130_IMU_REGISTER_MODEL at static-init time.
+std::vector<const ModelDesc *> &registry()
+{
+    static std::vector<const ModelDesc *> r;   // function-local static: safe init order
+    return r;
+}
 
 } // namespace
+
+bool register_model(const ModelDesc *desc)
+{
+    registry().push_back(desc);
+    return true;
+}
 
 Imu::Imu(uint8_t bus, uint8_t addr)
     : bus_(bus, addr)
 {
     if(!bus_)return;
 
-    for(const ModelDesc *const *m = kModelTable; *m; m++){
+    for(const ModelDesc *m : registry()){
         uint8_t val = 0;
-        if(bus_.read((*m)->who_am_i_addr, &val) != Status::Ok)continue;
-        if(val != (*m)->who_am_i_val)continue;
+        if(bus_.read(m->who_am_i_addr, &val) != Status::Ok)continue;
+        if(val != m->who_am_i_val)continue;
 
-        desc_ = *m;
+        desc_ = m;
         return;
     }
 }

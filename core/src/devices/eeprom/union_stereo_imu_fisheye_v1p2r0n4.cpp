@@ -187,5 +187,7 @@ extern const ModelDesc kUnionStereoImuFisheyeV1p2R0N4 = {
     read,
 };  
 
+GS130_EEPROM_REGISTER_MODEL(kUnionStereoImuFisheyeV1p2R0N4);
+
 } // namespace eeprom
 } // namespace gs130

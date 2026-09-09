@@ -64,7 +64,15 @@ private:
     const ModelDesc *desc_ = nullptr;
 };
 
+// Self-registration: a model file calls GS130_IMU_REGISTER_MODEL(<desc>) at file
+// scope; the registry fills at static-init time, so a new model file needs no edit here.
+bool register_model(const ModelDesc *desc);
+
 } // namespace imu
 } // namespace gs130
+
+// Self-registration macro: call at file scope in a model .cpp, after the ModelDesc definition.
+#define GS130_IMU_REGISTER_MODEL(DESC) \
+    namespace { [[maybe_unused]] const bool gs130_reg_##DESC = ::gs130::imu::register_model(&DESC); }
 
 #endif // GS130_DEVICES_IMU_IMU_HPP

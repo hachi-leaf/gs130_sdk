@@ -1,9 +1,7 @@
 # GS130 SDK - Core library Makefile
 #
 #   make                      build the library (default platform: rdkx5)
-#   make rdkx5                build for RDK X5 (same as a bare make)
-#   make rdks100              build for S100
-#   make rdks600              build for S600
+#   make <platform>           build for a platform (a dir name under src/devices/pipeline/)
 #   make sample               build the sample program
 #   make clean                clean
 
@@ -23,17 +21,18 @@ HBN_LIB_DIR := /usr/hobot/lib
 HBN_LIBS    := -lvpf -lhbmem -lcam
 
 # ---- Platform ----
+# Available platforms = subdirectory names under src/devices/pipeline/.
+# 'make <platform>' builds for it; a bare 'make' defaults to rdkx5.
+PLATFORMS := $(patsubst src/devices/pipeline/%/,%,$(wildcard src/devices/pipeline/*/))
 
-PLATFORM ?= rdkx5
-ifeq ($(PLATFORM),rdkx5)
-PLATFORM_DEF = -DRDKX5_RUNTIME
-else ifeq ($(PLATFORM),rdks100)
-PLATFORM_DEF = -DRDKS100_RUNTIME
-else ifeq ($(PLATFORM),rdks600)
-PLATFORM_DEF = -DRDKS600_RUNTIME
-else
-$(error unknown platform: PLATFORM=$(PLATFORM), choose rdkx5 / rdks100 / rdks600)
+GOAL := $(firstword $(MAKECMDGOALS))
+ifneq ($(filter $(GOAL),$(PLATFORMS)),)
+PLATFORM := $(GOAL)
 endif
+PLATFORM ?= rdkx5
+
+# the platform backend .cpp is #included by path (not compiled standalone)
+PLATFORM_IMPL = -DGS130_PLATFORM_IMPL='"devices/pipeline/$(PLATFORM)/$(PLATFORM).cpp"'
 
 # ---- Toolchain ----
 
@@ -44,7 +43,7 @@ CXX = g++
 
 COMMON_FLAGS = -Wall -Wextra -O2 -g -fPIC
 CFLAGS   = $(COMMON_FLAGS) -std=gnu11
-CXXFLAGS = $(COMMON_FLAGS) -std=gnu++17 $(PLATFORM_DEF)
+CXXFLAGS = $(COMMON_FLAGS) -std=gnu++17 $(PLATFORM_IMPL)
 INCLUDES = -Iinclude -Isrc -I/usr/include/opencv4
 LDFLAGS  = -L$(HBN_LIB_DIR)
 LIBS     = $(HBN_LIBS) -lm -lpthread -lrt $(OPENCV_LIBS) \
@@ -59,7 +58,7 @@ to_obj = $(patsubst %.cpp,build/%.o,$(patsubst %.c,build/%.o,$1))
 # NOTE: a platform .cpp under pipeline/<platform>/ (e.g. rdkx5.cpp) is #included by
 #       pipeline.cpp (single-TU dispatch), so it must NOT be compiled as a separate object.
 #       The .c node files in those dirs ARE compiled normally.
-C_SRCS   := $(shell find src -type f -name '*.c')
+C_SRCS   := $(wildcard src/devices/pipeline/$(PLATFORM)/*.c)
 CPP_SRCS := $(shell find src -type f -name '*.cpp' ! -path '*/devices/pipeline/*/*.cpp')
 OBJS     := $(call to_obj,$(C_SRCS) $(CPP_SRCS))
 
@@ -78,17 +77,9 @@ LIB_SHARED   = $(OUT_DIR)/libgs130.so
 
 all: lib
 
-# platform selection shortcuts (a bare 'make' builds rdkx5 by default)
-.PHONY: rdkx5 rdks100 rdks600
-
-rdkx5:
-	@$(MAKE) PLATFORM=rdkx5
-
-rdks100:
-	@$(MAKE) PLATFORM=rdks100
-
-rdks600:
-	@$(MAKE) PLATFORM=rdks600
+# each platform directory name is itself a build target: 'make rdkx5' etc.
+.PHONY: $(PLATFORMS)
+$(PLATFORMS): all
 
 lib: $(LIB_STATIC) $(LIB_FULL)
 
@@ -149,6 +140,6 @@ devices: eeprom imu pipeline
 
 eeprom:   $(call to_obj,$(wildcard src/devices/eeprom/*.cpp))
 imu:      $(call to_obj,$(wildcard src/devices/imu/*.cpp))
-# pipeline recurses into the rdkx5 platform subtree;
-# platform .cpp is #included by pipeline.cpp, so exclude subdir .cpp (keep subdir .c)
-pipeline: $(call to_obj,$(shell find src/devices/pipeline -type f \( -name '*.cpp' -o -name '*.c' \) ! -path '*/devices/pipeline/*/*.cpp'))
+# pipeline glue (pipeline.cpp) + the selected platform's .c node helpers;
+# the platform's .cpp backend is #included by pipeline.cpp, not compiled standalone
+pipeline: $(call to_obj,$(wildcard src/devices/pipeline/*.cpp) $(wildcard src/devices/pipeline/$(PLATFORM)/*.c))

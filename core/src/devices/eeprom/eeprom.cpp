@@ -9,30 +9,37 @@
  */
 #include "devices/eeprom/eeprom.hpp"
 
+#include <vector>
+
 namespace gs130 {
 namespace eeprom {
 
-// EEPROM model declarations
-extern const ModelDesc kUnionStereoImuFisheyeV1p2R0N4;
-
 namespace {
 
-// EEPROM model registry table
-const ModelDesc *const kModelTable[] = {
-    &kUnionStereoImuFisheyeV1p2R0N4,
-    nullptr,
-};
+// Auto-populated model registry: each model file self-registers via
+// GS130_EEPROM_REGISTER_MODEL at static-init time.
+std::vector<const ModelDesc *> &registry()
+{
+    static std::vector<const ModelDesc *> r;   // function-local static: safe init order
+    return r;
+}
 
 } // namespace
+
+bool register_model(const ModelDesc *desc)
+{
+    registry().push_back(desc);
+    return true;
+}
 
 Eeprom::Eeprom(uint8_t bus, uint8_t addr)
     : bus_(bus, addr)
 {
     if(!bus_)return;
 
-    for(const ModelDesc *const *m = kModelTable; *m; m++){
-        if(!(*m)->probe(bus_))continue;
-        desc_ = *m;
+    for(const ModelDesc *m : registry()){
+        if(!m->probe(bus_))continue;
+        desc_ = m;
         return;
     }
 }

@@ -267,5 +267,7 @@ extern const ModelDesc kIcm42688 = {
     deinit,
 };
 
+GS130_IMU_REGISTER_MODEL(kIcm42688);
+
 } // namespace imu
 } // namespace gs130

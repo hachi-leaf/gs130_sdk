@@ -13,21 +13,11 @@
 #ifndef GS130_DEFINE_H
 #define GS130_DEFINE_H
 
-/* Preset dispatcher: GS130_CONFIG(RDKX5, GS130WI, mode, w, h, fps, odr)
- * forwards to GS130_CONFIG_<platform>_<model>(mode, w, h, fps, odr).
- * An undefined platform/model combination fails the build, which is intended. */
-#define GS130_CONFIG(platform, model, ...)  GS130_CONFIG_##platform##_##model(__VA_ARGS__)
+#define GS130_CONFIG(platform, device, mode, w, h, fps, odr) \
+    strcmp((platform), "RDKX5") == 0 && strcmp((device), "GS130WI") == 0 ? (gs130_config_t) GS130_CONFIG_RDKX5_GS130WI((mode), (w), (h), (fps), (odr)) : \
+    strcmp((platform), "RDKX5") == 0 && strcmp((device), "GS130W")  == 0 ? (gs130_config_t) GS130_CONFIG_RDKX5_GS130W((mode), (w), (h), (fps), (odr))  : \
+    (fprintf(stderr, "unsupported platform/device: %s %s\n", (platform), (device)), exit(1), (gs130_config_t){0})
 
-/* RDK X5 + GS130WI preset: board-fixed fields use the verified bring-up values
- * (sensor 1088x1280, buses 4/6, mipi/gpio maps, EEPROM 0x50, fifos);
- * the commonly-tuned knobs are parameters.
- *
- *   gs130_config_t cfg = GS130_CONFIG_RDKX5_GS130WI(GS130_CAMERA_MODE_RECT, 544, 640, 30, 200);
- *   gs130_init(dev, &cfg);
- *
- * NOTE: uses GNU range designated initializers ([a ... b] = v); fine on gcc/clang.
- * NOTE: fps_ only sets the frame rate request; line_length/frame_length stay at the
- *       bring-up values, so large fps changes may need those adjusted too. */
 #define GS130_CONFIG_RDKX5_GS130WI(mode_, width_, height_, fps_, odr_) {    \
     .camera_config = {                                                      \
         .bus = {4, 6}, .bus_num = 2,                                        \
@@ -38,8 +28,8 @@
         .output_width = (width_), .output_height = (height_),               \
         .mode = (mode_),                                                    \
         .stereo_layout = GS130_STEREO_LAYOUT_NONE,                          \
-        .bus_mipi_rx    = { [0 ... 31] = 0xFF, [4] = 2, [6] = 0 },         \
-        .bus_reset_gpio = { [0 ... 31] = -1,   [4] = 351, [6] = 353 },     \
+        .bus_mipi_rx    = { [0 ... 3] = 0xFF, [4] = 2, [5] = 0xFF, [6] = 0, [7 ... 31] = 0xFF }, \
+        .bus_reset_gpio = { [0 ... 3] = -1, [4] = 351, [5] = -1, [6] = 353, [7 ... 31] = -1 },   \
         .fsync_camera = GS130_CAMERA_RIGHT_IDX,                             \
     },                                                                      \
     .imu_config = {                                                         \
@@ -50,6 +40,29 @@
     .eeprom_config = { .bus = {4, 6}, .bus_num = 2, .addr = 0x50 },         \
     .camera_fifo = { .depth = 4,    .mode = GS130_FIFO_DROP_OLD },          \
     .imu_fifo    = { .depth = 1024, .mode = GS130_FIFO_DROP_OLD },          \
+}
+
+#define GS130_CONFIG_RDKX5_GS130W(mode_, width_, height_, fps_, odr_) {    \
+    .camera_config = {                                                      \
+        .bus = {4, 6}, .bus_num = 2,                                        \
+        .left_addr = 0x30, .right_addr = 0x31,                              \
+        .sensor_width = 1088, .sensor_height = 1280,                        \
+        .fps = (fps_), .line_length = 1400, .frame_length = 1500,           \
+        .tuning_file = NULL,                                                \
+        .output_width = (width_), .output_height = (height_),               \
+        .mode = (mode_),                                                    \
+        .stereo_layout = GS130_STEREO_LAYOUT_NONE,                          \
+        .bus_mipi_rx    = { [0 ... 3] = 0xFF, [4] = 2, [5] = 0xFF, [6] = 0, [7 ... 31] = 0xFF }, \
+        .bus_reset_gpio = { [0 ... 3] = -1, [4] = 351, [5] = -1, [6] = 353, [7 ... 31] = -1 },   \
+        .fsync_camera = GS130_CAMERA_RIGHT_IDX,                             \
+    },                                                                      \
+    .imu_config = {                                                         \
+        .bus_num = 0, .addr = 0x68,                                         \
+        .odr_hz = (odr_), .accel_fsr_g = 16, .gyro_fsr_dps = 2000,          \
+        .accel_bw_sel = 0, .gyro_bw_sel = 0,                                \
+    },                                                                      \
+    .eeprom_config = { .bus = {4, 6}, .bus_num = 2, .addr = 0x50 },         \
+    .camera_fifo = { .depth = 4,    .mode = GS130_FIFO_DROP_OLD },          \
 }
 
 #endif /* GS130_DEFINE_H */

@@ -33,6 +33,8 @@ PLATFORM ?= rdkx5
 
 # the platform backend .cpp is #included by path (not compiled standalone)
 PLATFORM_IMPL = -DGS130_PLATFORM_IMPL='"devices/pipeline/$(PLATFORM)/$(PLATFORM).cpp"'
+# platform name string, embedded for gs130_platform()
+PLATFORM_STR  = -DGS130_PLATFORM='"$(PLATFORM)"'
 
 # ---- Toolchain ----
 
@@ -43,7 +45,7 @@ CXX = g++
 
 COMMON_FLAGS = -Wall -Wextra -O2 -g -fPIC
 CFLAGS   = $(COMMON_FLAGS) -std=gnu11
-CXXFLAGS = $(COMMON_FLAGS) -std=gnu++17 $(PLATFORM_IMPL)
+CXXFLAGS = $(COMMON_FLAGS) -std=gnu++17 $(PLATFORM_IMPL) $(VERSION_DEF) $(PLATFORM_STR)
 INCLUDES = -Iinclude -Isrc -I/usr/include/opencv4
 LDFLAGS  = -L$(HBN_LIB_DIR)
 LIBS     = $(HBN_LIBS) -lm -lpthread -lrt $(OPENCV_LIBS) \
@@ -51,23 +53,24 @@ LIBS     = $(HBN_LIBS) -lm -lpthread -lrt $(OPENCV_LIBS) \
 
 # ---- Sources ----
 
-# source path -> object path under build/  (.c and .cpp both -> build/....o)
-to_obj = $(patsubst %.cpp,build/%.o,$(patsubst %.c,build/%.o,$1))
+# source path -> object path under build/$(PLATFORM)/  (.c and .cpp both -> build/<platform>/....o)
+to_obj = $(patsubst %.cpp,build/$(PLATFORM)/%.o,$(patsubst %.c,build/$(PLATFORM)/%.o,$1))
 
 # auto-discovered.
 # NOTE: a platform .cpp under pipeline/<platform>/ (e.g. rdkx5.cpp) is #included by
 #       pipeline.cpp (single-TU dispatch), so it must NOT be compiled as a separate object.
 #       The .c node files in those dirs ARE compiled normally.
 C_SRCS   := $(wildcard src/devices/pipeline/$(PLATFORM)/*.c)
-CPP_SRCS := $(shell find src -type f -name '*.cpp' ! -path '*/devices/pipeline/*/*.cpp')
+CPP_SRCS := $(shell find src -type f -name '*.cpp' ! -path '*/devices/pipeline/*/*.cpp' ! -path '*/tools/*')
 OBJS     := $(call to_obj,$(C_SRCS) $(CPP_SRCS))
 
 # ---- Outputs ----
 
 VERSION       := $(shell cat ../VERSION)
 VERSION_MAJOR := $(shell echo $(VERSION) | cut -d. -f1)
+VERSION_DEF   = -DGS130_VERSION='"$(VERSION)"'
 
-OUT_DIR      = out
+OUT_DIR      = out/$(PLATFORM)
 LIB_STATIC   = $(OUT_DIR)/libgs130.a
 LIB_FULL     = $(OUT_DIR)/libgs130.so.$(VERSION)
 LIB_SO_MAJOR = $(OUT_DIR)/libgs130.so.$(VERSION_MAJOR)
@@ -83,12 +86,35 @@ $(PLATFORMS): all
 
 lib: $(LIB_STATIC) $(LIB_FULL)
 
-sample: $(OUT_DIR)/sample
+# ---- Samples ----
+# Each samples/*.c becomes a standalone executable; samples/gs130 dispatches to them.
 
-$(OUT_DIR)/sample: examples/sample.c $(LIB_FULL)
-	@mkdir -p build $(OUT_DIR)
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o build/sample.o
-	$(CXX) build/sample.o -o $@ -L$(OUT_DIR) -lgs130 $(LDFLAGS) -lstdc++ -Wl,-rpath,$(CURDIR)/$(OUT_DIR)
+SAMPLE_SRCS := $(wildcard samples/*.c)
+SAMPLE_BINS := $(patsubst samples/%.c,$(OUT_DIR)/%,$(SAMPLE_SRCS))
+
+samples: $(SAMPLE_BINS) $(OUT_DIR)/gs130
+
+$(OUT_DIR)/%: samples/%.c $(LIB_FULL)
+	@mkdir -p $(OUT_DIR)
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o build/$(PLATFORM)/$*.o
+	$(CXX) build/$(PLATFORM)/$*.o -o $@ -L$(OUT_DIR) -lgs130 -Wl,-rpath,'$$ORIGIN'
+
+$(OUT_DIR)/gs130: samples/gs130
+	@mkdir -p $(OUT_DIR)
+	cp $< $@
+	chmod +x $@
+
+# ---- Tools ----
+# Internal diagnostic tools (private headers), dispatched by the gs130 script.
+
+TOOL_SRCS := $(wildcard src/tools/*.cpp)
+TOOL_BINS := $(patsubst src/tools/%.cpp,$(OUT_DIR)/%,$(TOOL_SRCS))
+
+tools: $(TOOL_BINS)
+
+$(OUT_DIR)/%: src/tools/%.cpp $(LIB_FULL)
+	@mkdir -p $(OUT_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $< -o $@ -L$(OUT_DIR) -lgs130 -Wl,-rpath,'$$ORIGIN'
 
 $(LIB_STATIC): $(OBJS)
 	@mkdir -p $(OUT_DIR)
@@ -102,11 +128,11 @@ $(LIB_FULL): $(OBJS)
 
 # ---- Rules ----
 
-build/%.o: %.c
+build/$(PLATFORM)/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-build/%.o: %.cpp
+build/$(PLATFORM)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
@@ -115,7 +141,7 @@ build/%.o: %.cpp
 clean:
 	rm -rf build out
 
-.PHONY: all lib sample clean
+.PHONY: all lib samples tools clean
 
 # ---- Per-module targets ----
 # Compile a single module on demand; 'base' / 'devices' build their whole group.

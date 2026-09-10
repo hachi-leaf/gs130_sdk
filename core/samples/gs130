@@ -1,0 +1,118 @@
+#!/bin/bash
+# gs130 - unified front-end for the gs130 samples and internal tools.
+#   gs130 version
+#   gs130 imu-info | eeprom-info
+#   gs130 calib-export <dir> <platform> <device> <mode> <w> <h> <fps> <odr>
+#   gs130 detect  imu|eeprom|camera -b <bus...> [-a <addr...>]
+#   gs130 shell   [-p platform] [-d model] [-m mode] [-w W] [-h H] [-f fps] [-o odr]
+#                 lock the config, then run samples interactively without re-typing it
+dir=$(dirname "$0")
+
+# colors, but only when stdout is a terminal (piped/redirected output stays plain)
+ESC=$(printf '\033')
+if [ -t 1 ]; then
+    C_TITLE="${ESC}[1;36m"    # bold cyan
+    C_DIM="${ESC}[36m"        # cyan
+    C_OFF="${ESC}[0m"
+    # \001..\002 mark the escapes as zero-width so readline keeps the cursor straight
+    PROMPT=$'\001\033[90m\002gs130-shell>>\001\033[0m\002 '
+else
+    C_TITLE=""; C_DIM=""; C_OFF=""
+    PROMPT='gs130-shell>> '
+fi
+
+# parse the locked-config flags; tunables are collected into CONFIG_ARGS to
+# re-pass to each sample, platform/model are noted (only rdkx5/GS130WI for now)
+# parse the locked-config flags into vars, then hand samples a fixed positional order:
+#   platform device mode width height fps odr
+usage() {
+    cat <<'EOF'
+gs130 - unified front-end for the gs130 samples and internal tools
+
+usage: gs130 <command> [args]
+
+commands:
+  version                    print the SDK version and platform
+  imu-info                   print the detected IMU model and its details
+  eeprom-info                print the EEPROM calibration model and its details
+  calib-export <dir> <platform> <device> <mode> <w> <h> <fps> <odr>
+                             export the calibration as Kalibr YAML into <dir>
+  detect imu|eeprom|camera -b <bus...> [-a <addr...>]
+                             scan I2C buses/addresses for devices
+  shell -p <platform> -d <device> -m <mode> -w <W> -h <H> -f <fps> -o <odr>
+                             lock the config, then run commands interactively
+  help                       show this help
+EOF
+}
+
+parse_config() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -p) PLATFORM=$2; shift 2 ;;
+            -d) DEVICE=$2;   shift 2 ;;
+            -m) MODE=$2;     shift 2 ;;
+            -w) WIDTH=$2;    shift 2 ;;
+            -h) HEIGHT=$2;   shift 2 ;;
+            -f) FPS=$2;      shift 2 ;;
+            -o) ODR=$2;      shift 2 ;;
+            *) echo "unknown option: $1" >&2; exit 1 ;;
+        esac
+    done
+    if [ -z "$PLATFORM" ] || [ -z "$DEVICE" ] || [ -z "$MODE" ] || \
+       [ -z "$WIDTH" ] || [ -z "$HEIGHT" ] || [ -z "$FPS" ] || [ -z "$ODR" ]; then
+        echo "missing config: -p -d -m -w -h -f -o are all required" >&2
+        exit 1
+    fi
+    CFG="$PLATFORM $DEVICE $MODE $WIDTH $HEIGHT $FPS $ODR"
+}
+
+case "$1" in
+    help|-h|--help) usage; exit 0 ;;
+
+    version) exec "$dir/gs130-version" ;;
+
+    imu-info)    exec "$dir/gs130-imu-info" ;;
+    eeprom-info) exec "$dir/gs130-eeprom-info" ;;
+
+    calib-export)
+        shift
+        exec "$dir/gs130-calib-export" "$@" ;;
+
+    detect)
+        case "$2" in
+            imu|eeprom|camera) sub=$2; shift 2; exec "$dir/gs130-detect-$sub" "$@" ;;
+            *) echo "usage: gs130 detect {imu|eeprom|camera} -b <bus...> [-a <addr...>]" >&2; exit 1 ;;
+        esac ;;
+
+    shell)
+        shift
+        parse_config "$@"
+        echo "${C_DIM}==================================================${C_OFF}"
+        echo "  ${C_TITLE}gs130 shell${C_OFF}  [$PLATFORM / $DEVICE]"
+        echo "  mode=$MODE   size=${WIDTH}x${HEIGHT}   fps=$FPS   odr=${ODR}Hz"
+        echo "  type 'help' for commands, 'exit' to quit"
+        echo "${C_DIM}==================================================${C_OFF}"
+        while IFS= read -e -r -p "$PROMPT" line; do
+            [ -n "$line" ] && history -s "$line"   # read -e does not record history by itself
+            set -- $line
+            [ $# -eq 0 ] && continue
+            case "$1" in
+                exit|quit) break ;;
+                help)
+                    echo "gs130 shell commands:"
+                    echo "  help                  show this help"
+                    echo "  imu-info              print the detected IMU model and its details"
+                    echo "  eeprom-info           print the EEPROM calibration model and its details"
+                    echo "  calib-export <dir>    export the calibration as Kalibr YAML into <dir>"
+                    echo "  capture               capture stereo frames and IMU packets"
+                    echo "  exit | quit           leave the shell" ;;
+                imu-info)    "$dir/gs130-imu-info" $CFG ;;
+                eeprom-info) "$dir/gs130-eeprom-info" $CFG ;;
+                calib-export) "$dir/gs130-calib-export" "$2" $CFG ;;
+                capture) "$dir/gs130-capture" $CFG ;;
+                *) echo "unknown command: $1 (try help)" ;;
+            esac
+        done ;;
+
+    *) usage >&2; exit 1 ;;
+esac

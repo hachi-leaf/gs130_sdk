@@ -144,8 +144,7 @@ int gdc_open(hbn_vnode_handle_t *gdc, hb_mem_common_buf_t *gdc_bin,
         .is_contig = 1,
         .flags = HB_MEM_USAGE_CPU_READ_OFTEN |
                  HB_MEM_USAGE_CPU_WRITE_OFTEN |
-                 HB_MEM_USAGE_CACHED |
-                 HB_MEM_USAGE_GRAPHIC_CONTIGUOUS_BUF,
+                 HB_MEM_USAGE_CACHED,
     };
     if (hbn_vnode_set_ochn_buf_attr(*gdc, 0, &alloc) != 0)
         return -1;

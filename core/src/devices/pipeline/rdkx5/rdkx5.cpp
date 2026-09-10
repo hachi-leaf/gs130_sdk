@@ -111,6 +111,8 @@ Status Pipeline::init(const PipelineConfig &cfg, StereoImuModel *cal)
     if(!impl_->probed)return Status::NotFound;
     if(impl_->inited)return Status::ParamError;
 
+    hb_mem_module_open();   // hold the hb_mem module for the pipeline's whole lifetime
+
     // Geometry parameters
     impl_->input_w = cfg.sensor_width;
     impl_->input_h = cfg.sensor_height;
@@ -315,6 +317,7 @@ void Pipeline::deinit()
     }
 
     impl_->inited = false;
+    hb_mem_module_close();
 }
 
 Status Pipeline::start(CamIndex first)

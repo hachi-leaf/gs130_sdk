@@ -184,7 +184,15 @@ run_cfg_sample() {
 case "$1" in
     help|-h|--help) usage; exit 0 ;;
 
-    version) exec "$dir/gs130-version" ;;
+    version)
+        case "$2" in
+            --help|-help)
+                echo "usage: gs130 version"
+                echo
+                echo "Prints the SDK version and the platform it was built for."
+                exit 0 ;;
+        esac
+        exec "$dir/gs130-version" ;;
 
     imu-info|eeprom-info)
         CMD=gs130-$1

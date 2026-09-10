@@ -110,6 +110,12 @@ static void mat33_mul_vec(const double *A, const double *v, double *out)   // ou
         out[i] = A[i*3+0]*v[0] + A[i*3+1]*v[1] + A[i*3+2]*v[2];
 }
 
+static void mat33_t_mul_vec(const double *A, const double *v, double *out)   // out = A^T * v
+{
+    for(int i = 0; i < 3; i++)
+        out[i] = A[0*3+i]*v[0] + A[1*3+i]*v[1] + A[2*3+i]*v[2];
+}
+
 // stored extrinsics (sensor -> reference frame) of a frame; {nullptr, nullptr} on invalid frame
 static std::pair<double*, double*> frame_extrinsics(gs130_device_t *dev, gs130_reference_frame_t frame)
 {
@@ -696,7 +702,7 @@ gs130_err_t gs130_get_relative_T(
     const double d[3] = {from.second[0] - to.second[0],
                          from.second[1] - to.second[1],
                          from.second[2] - to.second[2]};
-    mat33_t_mul(to.first, d, T);
+    mat33_t_mul_vec(to.first, d, T);
     return GS130_OK;
 }
 

@@ -225,7 +225,7 @@ bool full(base::I2cDevice &bus)
     uint8_t val = 0;
     if(!select_bank(bus, 0))return false;
     if(bus.readBurst(kIntStatus, &val, 1) != Status::Ok)return false;
-    return (val & 0x01) != 0;   // INT_STATUS bit0 = FIFO_FULL (auto-cleared on read)
+    return (val & 0x02) != 0;   // INT_STATUS bit1 = FIFO_FULL (auto-cleared on read)
 }
 
 void deinit(base::I2cDevice &bus)

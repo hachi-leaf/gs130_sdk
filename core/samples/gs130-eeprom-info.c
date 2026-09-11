@@ -1,5 +1,12 @@
-/* gs130-info-eeprom: probe and print the EEPROM calibration model + details.
- * Positional args forwarded by `gs130 shell`: platform device mode width height fps odr */
+/**
+ * @file gs130-eeprom-info.c
+ * @brief Probe and print the EEPROM calibration model and its details
+ *
+ * This file is part of gs130_sdk (https://github.com/hachi-leaf/gs130_sdk).
+ * Copyright (c) 2026 D-Robotics.
+ * SPDX-License-Identifier: MIT
+ * See the LICENSE file in the project root for the full license text.
+ */
 #include "gs130.h"
 #include "gs130_define.h"
 #include <stdio.h>
@@ -8,7 +15,7 @@
 
 int main(int argc, char **argv)
 {
-    (void)argc;
+    if(argc < 8)return 1;
     const char *platform = argv[1];
     const char *device   = argv[2];
     const char *mode_s   = argv[3];

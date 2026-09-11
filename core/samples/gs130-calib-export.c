@@ -23,7 +23,7 @@ static char *imu_yaml(const gs130_calibration_t *cal, int odr);
 
 int main(int argc, char **argv)
 {
-    (void)argc;
+    if(argc < 9)return 1;
 
     gs130_camera_mode_t mode = !strcmp(argv[4], "rect")   ? GS130_CAMERA_MODE_RECT :
                                !strcmp(argv[4], "resize") ? GS130_CAMERA_MODE_RESIZE :

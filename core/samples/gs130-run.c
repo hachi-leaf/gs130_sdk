@@ -33,7 +33,7 @@ static void print_block(uint64_t cam_idx, uint64_t imu_idx, double fps, double o
 
 int main(int argc, char **argv)
 {
-    (void)argc;
+    if(argc < 8)return 1;
     signal(SIGINT, on_sigint);
 
     gs130_camera_mode_t mode = !strcmp(argv[3], "rect")   ? GS130_CAMERA_MODE_RECT :

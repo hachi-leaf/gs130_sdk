@@ -1,17 +1,18 @@
 #!/bin/bash
-# gs130 - unified front-end for the gs130 samples and internal tools.
+# gs130 - unified front-end for the gs130 SDK.
 #
+# external commands, run from the host shell:
+#   gs130 help
 #   gs130 version
-#   gs130 imu-info    -p RDKX5 -d GS130WI -m raw -w 1088 -h 1280 -f 30 -o 200
-#   gs130 eeprom-info -p RDKX5 -d GS130WI -m raw -w 1088 -h 1280 -f 30 -o 200
-#   gs130 capture     -p RDKX5 -d GS130WI -m raw -w 1088 -h 1280 -f 30 -o 200
-#   gs130 calib-export <dir> -p platform -d model -m mode -w W -h H -f fps -o odr
 #   gs130 detect imu|eeprom|camera -b <bus...> [-a <addr...>]
-#   gs130 shell  -p platform -d model -m mode -w W -h H -f fps -o odr
-#                lock that config, then run commands interactively without re-typing it
+#   gs130 shell -p <platform> -d <device> -m <mode> -w <W> -h <H> -f <fps> -o <odr>
 #
-# every command takes the same device-config flags; parse_config turns them into the
-# fixed positional order the samples expect: platform device mode width height fps odr
+# internal commands, run inside `gs130 shell`, which locks the device config once:
+#   help, imu-info, eeprom-info, calib-export <dir>, run, rec, exit
+#
+# every command answers --help, and every failure prints
+#   <command>: <reason>
+#   try '<command> --help'
 dir=$(dirname "$0")
 
 # colors, but only when stdout is a terminal (piped/redirected output stays plain)
@@ -27,13 +28,34 @@ else
     PROMPT='gs130-shell>> '
 fi
 
-CMD=gs130      # command being run, so the shared messages can name it
+CMD=gs130   # the command being run, so the shared messages can name it
 
-# the device-config flags, shared by every hardware command
+# die <reason>: a command-line level failure: report it and stop
+die() {
+    echo "$CMD: $1" >&2
+    echo "try '$CMD --help'" >&2
+    exit 1
+}
+
+# fail <reason>: a shell level failure: report it and let the caller decide
+fail() {
+    echo "$CMD: $1" >&2
+    echo "try '$CMD --help'" >&2
+    return 1
+}
+
+# help_requested <arg>
+help_requested() {
+    [ "$1" = "--help" ] || [ "$1" = "-help" ] || [ "$1" = "-h" ]
+}
+
+# ---- usage ----
+
+# the device config that `gs130 shell` locks in for the whole session
 flag_help() {
     cat <<'EOF'
 device config:
-  -p <platform>   target platform              RDKX5
+  -p <platform>   target platform              RDKX5 | RDKS100 | RDKS600
   -d <device>     device model                 GS130WI | GS130W
   -m <mode>       pipeline mode                raw | resize | rect
   -w <width>      output width, in pixels
@@ -43,85 +65,20 @@ device config:
 EOF
 }
 
-# detailed help for one command: sample_usage <command> [<what>]
-sample_usage() {
-    case "$1" in
-        imu-info|eeprom-info)
-            echo "usage: gs130 $1 -p <platform> -d <device> -m <mode> -w <W> -h <H> -f <fps> -o <odr>"
-            echo
-            echo "Reads the device over I2C and prints the detected $2 and its details."
-            echo
-            flag_help ;;
-        capture)
-            echo "usage: gs130 capture -p <platform> -d <device> -m <mode> -w <W> -h <H> -f <fps> -o <odr>"
-            echo
-            echo "Streams stereo frames and IMU packets, and prints a rate line once per second."
-            echo "Press Ctrl-C to stop."
-            echo
-            flag_help ;;
-        calib-export)
-            echo "usage: gs130 calib-export <dir> -p <platform> -d <device> -m <mode> -w <W> -h <H> -f <fps> -o <odr>"
-            echo
-            echo "Exports the calibration as Kalibr YAML into <dir>:"
-            echo "  camchain.yaml         camera intrinsics and the chain of extrinsics"
-            echo "  imu.yaml              IMU noise parameters, when the device has an IMU"
-            echo
-            echo "rect mode is accepted but warned about: it reports virtual extrinsics and"
-            echo "zeroed distortion, so export the real calibration in raw mode."
-            echo
-            flag_help ;;
-    esac
-}
-
-detect_usage() {
-    cat <<'EOF'
-usage: gs130 detect imu|eeprom|camera -b <bus...> [-a <addr...>]
-
-Scans I2C buses and addresses for devices.
-
-  -b <bus...>     I2C bus numbers to scan, e.g. -b 4 6
-  -a <addr...>    I2C addresses to probe, in hex
-                  defaults per target: imu 0x68 0x69, eeprom 0x50, camera 0x30 0x32
-EOF
-}
-
-shell_usage() {
-    cat <<'EOF'
-usage: gs130 shell -p <platform> -d <device> -m <mode> -w <W> -h <H> -f <fps> -o <odr>
-
-Locks the device config once, then runs gs130 commands interactively.
-
-EOF
-    flag_help
-    cat <<'EOF'
-
-example:
-  gs130 shell -p RDKX5 -d GS130WI -m raw -w 1088 -h 1280 -f 30 -o 200
-
-inside the shell:
-  help                  show the commands
-  exit | quit           leave the shell
-EOF
-}
-
 usage() {
     cat <<'EOF'
-gs130 - unified front-end for the gs130 samples and internal tools
+gs130 - unified front-end for the gs130 SDK
 
 usage: gs130 <command> [args]
 
 commands:
+  help                          show this help
   version                       print the SDK version and platform
-  imu-info                      print the detected IMU model and its details
-  eeprom-info                   print the EEPROM calibration model and its details
   detect <target>               scan I2C buses and addresses for devices
                                   target: imu | eeprom | camera
-  calib-export <dir>            export the calibration as Kalibr YAML into <dir>
-                                  writes <dir>/camchain.yaml, plus <dir>/imu.yaml
-                                  when the device has an IMU
-  capture                       capture stereo frames and IMU packets
-  shell                         lock a device config, then run commands interactively
-  help                          show this help
+  shell                         lock a device config, then run the SDK commands
+                                interactively; imu-info, eeprom-info, calib-export,
+                                run and rec live in there
 
 EOF
     flag_help
@@ -132,115 +89,255 @@ detect options:
   -a <addr...>    I2C addresses to probe
                   defaults per target: imu 0x68 0x69, eeprom 0x50, camera 0x30 0x32
 
-notes:
-  raw mode is the sensor's own output, and the only mode that exports the EEPROM's
-  real calibration; rect mode rectifies the images and reports virtual (parallel)
-  extrinsics.
-  run 'gs130 <command> --help' for the details of a single command.
-
 examples:
-  gs130 imu-info     -p RDKX5 -d GS130WI -m raw -w 1088 -h 1280 -f 30 -o 200
-  gs130 calib-export ./calib -p RDKX5 -d GS130WI -m raw -w 1088 -h 1280 -f 30 -o 200
-  gs130 capture      -p RDKX5 -d GS130WI -m raw -w 1088 -h 1280 -f 30 -o 200
-  gs130 shell        -p RDKX5 -d GS130WI -m raw -w 1088 -h 1280 -f 30 -o 200
+  gs130 detect imu -b 6
+  gs130 shell -p RDKX5 -d GS130WI -m raw -w 1088 -h 1280 -f 30 -o 200
+
+run '<command> --help' for the details of one command.
 EOF
 }
 
-# turn the device-config flags into CFG, the positional order the samples expect
+version_usage() {
+    cat <<'EOF'
+usage: gs130 version
+
+Prints the SDK version and the platform it was built for.
+EOF
+}
+
+detect_usage() {
+    cat <<'EOF'
+usage: gs130 detect <target> -b <bus...> [-a <addr...>]
+
+Scans I2C buses and addresses for devices.
+
+  <target>        imu | eeprom | camera
+  -b <bus...>     I2C bus numbers to scan, e.g. -b 4 6
+  -a <addr...>    I2C addresses to probe, in hex
+                  defaults per target: imu 0x68 0x69, eeprom 0x50, camera 0x30 0x32
+
+example:
+  gs130 detect imu -b 6
+EOF
+}
+
+shell_usage() {
+    cat <<'EOF'
+usage: gs130 shell -p <platform> -d <device> -m <mode> -w <W> -h <H> -f <fps> -o <odr>
+
+Locks the device config once, then runs the SDK commands interactively.
+
+EOF
+    flag_help
+    cat <<'EOF'
+
+example:
+  gs130 shell -p RDKX5 -d GS130WI -m raw -w 1088 -h 1280 -f 30 -o 200
+
+inside the shell, run 'help' for the commands.
+EOF
+}
+
+run_usage() {
+    cat <<'EOF'
+usage: run
+
+Streams the camera and the IMU and prints the newest of each 50 times per second,
+using the device config locked by `gs130 shell`. Ctrl-C stops it.
+
+Records nothing: see 'rec --help' for that.
+EOF
+}
+
+rec_usage() {
+    cat <<'EOF'
+usage: rec [-c <from:to>] [-i <from:to>] -o <dir> [--stitch]
+
+Records camera frames and IMU packets into index ranges. Like 'run' it keeps
+going until Ctrl-C, which then writes out whatever was captured.
+
+  -c <from:to>    record the camera frames with index in [from, to)
+  -i <from:to>    record the IMU packets with index in [from, to)
+  -o <dir>        output directory, created when missing
+  --stitch        record one left-right stitched frame per camera index instead
+                  of one file per eye
+
+Indices are 0-based and count what the stream produced since it started, so every
+run numbers its own data from 0. A range is buffered in memory and written when
+the run ends, so the disk cannot make the capture drop data; the camera range is
+capped to what fits in RAM.
+
+output:
+  <dir>/cam/000100_L.nv12, 000100_R.nv12     (or 000100.nv12 with --stitch)
+  <dir>/imu.csv                              index,timestamp_ns,acc_xyz,gyro_xyz,temp,is_fsync
+EOF
+}
+
+imu_info_usage() {
+    cat <<'EOF'
+usage: imu-info
+
+Prints the detected IMU model and its details, using the device config locked
+by `gs130 shell`.
+EOF
+}
+
+eeprom_info_usage() {
+    cat <<'EOF'
+usage: eeprom-info
+
+Prints the EEPROM calibration model and its details, using the device config
+locked by `gs130 shell`.
+EOF
+}
+
+calib_export_usage() {
+    cat <<'EOF'
+usage: calib-export <dir>
+
+Exports the calibration as Kalibr YAML into <dir>, using the device config
+locked by `gs130 shell`:
+
+  <dir>/camchain.yaml    camera intrinsics, plus the T_cam_imu and T_cn_cnm1 extrinsics
+  <dir>/imu.yaml         IMU noise and intrinsics, when the device has an IMU
+
+raw mode exports the EEPROM's real calibration; rect mode reports virtual
+(parallel) extrinsics.
+EOF
+}
+
+# the command table printed by `help` inside the shell
+shell_help() {
+    cat <<'EOF'
+commands:
+  help                    show this help
+  imu-info                print the detected IMU model and its details
+  eeprom-info             print the EEPROM calibration model and its details
+  calib-export <dir>      export the calibration as Kalibr YAML into <dir>
+  run                     stream both channels, printing the newest data at 50 Hz
+  rec -c a:b -i c:d -o d  record index ranges until Ctrl-C, then write them out
+  exit | quit             leave the shell
+
+every command answers --help; the device config is locked for this session, and
+'gs130 shell --help' (outside the shell) shows how it is set.
+EOF
+}
+
+# ---- argument parsing ----
+
+# parse_range <from:to> <label>: sets RANGE_FROM and RANGE_TO, or fails
+parse_range() {
+    RANGE_FROM=${1%%:*}
+    RANGE_TO=${1#*:}
+    if [ "$RANGE_TO" = "$1" ] || [ -z "$RANGE_FROM" ] || [ -z "$RANGE_TO" ]; then
+        fail "$2 range must be <from:to>, got '$1'"
+        return 1
+    fi
+    case "$RANGE_FROM$RANGE_TO" in
+        *[!0-9]*)
+            fail "$2 range must be two whole numbers, got '$1'"
+            return 1 ;;
+    esac
+    if [ "$RANGE_FROM" -ge "$RANGE_TO" ]; then
+        fail "$2 range [$RANGE_FROM, $RANGE_TO) is empty"
+        return 1
+    fi
+    return 0
+}
+
+# parse_rec_args [-c a:b] [-i a:b] -o <dir> [--stitch]: sets the REC_* globals
+parse_rec_args() {
+    local rec_c="" rec_i="" rec_o=""
+
+    REC_STITCH=0
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --stitch) REC_STITCH=1; shift ;;
+            -c|-i|-o)
+                if [ $# -lt 2 ]; then
+                    fail "option $1 needs a value"
+                    return 1
+                fi
+                case "$1" in
+                    -c) rec_c=$2 ;; -i) rec_i=$2 ;; -o) rec_o=$2 ;;
+                esac
+                shift 2 ;;
+            *) fail "unknown option: $1"; return 1 ;;
+        esac
+    done
+
+    if [ -z "$rec_c$rec_i" ]; then
+        fail "give -c, -i or both: there is nothing to record"
+        return 1
+    fi
+    if [ -z "$rec_o" ]; then
+        fail "-o <dir> is required"
+        return 1
+    fi
+    if [ "$REC_STITCH" = 1 ] && [ -z "$rec_c" ]; then
+        fail "--stitch only affects camera frames, so it needs -c"
+        return 1
+    fi
+
+    REC_CF=-1; REC_CT=-1; REC_IF=-1; REC_IT=-1
+    if [ -n "$rec_c" ]; then
+        parse_range "$rec_c" camera || return 1
+        REC_CF=$RANGE_FROM; REC_CT=$RANGE_TO
+    fi
+    if [ -n "$rec_i" ]; then
+        parse_range "$rec_i" imu || return 1
+        REC_IF=$RANGE_FROM; REC_IT=$RANGE_TO
+    fi
+    REC_O=$rec_o
+    return 0
+}
+
+# turn the shared device-config flags into CFG, the positional order the samples
+# expect: platform device mode width height fps odr
 parse_config() {
+    local v
+
     while [ $# -gt 0 ]; do
         case "$1" in
             -p|-d|-m|-w|-h|-f|-o)
-                if [ $# -lt 2 ]; then
-                    echo "$CMD: option $1 needs a value" >&2
-                    echo "try '$CMD --help'" >&2
-                    exit 1
-                fi
+                [ $# -ge 2 ] || die "option $1 needs a value"
                 case "$1" in
                     -p) PLATFORM=$2 ;; -d) DEVICE=$2 ;; -m) MODE=$2 ;;
                     -w) WIDTH=$2 ;;    -h) HEIGHT=$2 ;; -f) FPS=$2 ;; -o) ODR=$2 ;;
                 esac
                 shift 2 ;;
-            *) echo "$CMD: unknown option: $1" >&2
-               echo "try '$CMD --help'" >&2; exit 1 ;;
+            *) die "unknown option: $1" ;;
         esac
     done
-    if [ -z "$PLATFORM" ] || [ -z "$DEVICE" ] || [ -z "$MODE" ] || \
-       [ -z "$WIDTH" ] || [ -z "$HEIGHT" ] || [ -z "$FPS" ] || [ -z "$ODR" ]; then
-        echo "$CMD: -p -d -m -w -h -f -o are all required" >&2
-        echo "try '$CMD --help'" >&2
-        exit 1
-    fi
+
+    for v in "$PLATFORM" "$DEVICE" "$MODE" "$WIDTH" "$HEIGHT" "$FPS" "$ODR"; do
+        [ -n "$v" ] || die "-p -d -m -w -h -f -o are all required"
+    done
     CFG="$PLATFORM $DEVICE $MODE $WIDTH $HEIGHT $FPS $ODR"
 }
 
-# run_cfg_sample <binary> <command> [device-config flags]
-run_cfg_sample() {
-    bin=$1; CMD=gs130-$2; shift 2
-    parse_config "$@"
-    exec "$dir/$bin" $CFG
-}
+# ---- dispatch ----
 
 case "$1" in
     help|-h|--help) usage; exit 0 ;;
+    "") usage >&2; exit 1 ;;
 
     version)
-        case "$2" in
-            --help|-help)
-                echo "usage: gs130 version"
-                echo
-                echo "Prints the SDK version and the platform it was built for."
-                exit 0 ;;
-        esac
+        CMD="gs130 version"
+        help_requested "$2" && { version_usage; exit 0; }
         exec "$dir/gs130-version" ;;
 
-    imu-info|eeprom-info)
-        CMD=gs130-$1
-        case "$2" in
-            --help|-help)
-                what=IMU
-                [ "$1" = eeprom-info ] && what=EEPROM
-                sample_usage "$1" "$what"; exit 0 ;;
-        esac
-        shift
-        run_cfg_sample "$CMD" "${CMD#gs130-}" "$@" ;;
-
-    calib-export)
-        CMD=gs130-calib-export
-        case "$2" in
-            --help|-help) sample_usage calib-export; exit 0 ;;
-        esac
-        if [ -z "$2" ]; then
-            echo "$CMD: missing <dir>" >&2
-            echo "try '$CMD --help'" >&2
-            exit 1
-        fi
-        outdir=$2
-        shift 2
-        parse_config "$@"
-        exec "$dir/gs130-calib-export" "$outdir" $CFG ;;
-
-    capture)
-        CMD=gs130-capture
-        case "$2" in
-            --help|-help) sample_usage capture; exit 0 ;;
-        esac
-        shift
-        run_cfg_sample gs130-capture capture "$@" ;;
-
     detect)
+        CMD="gs130 detect"
+        help_requested "$2" && { detect_usage; exit 0; }
         case "$2" in
-            --help|-help) detect_usage; exit 0 ;;
             imu|eeprom|camera) sub=$2; shift 2; exec "$dir/gs130-detect-$sub" "$@" ;;
-            *) echo "usage: gs130 detect imu|eeprom|camera -b <bus...> [-a <addr...>]" >&2
-               echo "try 'gs130 detect --help'" >&2; exit 1 ;;
+            *) die "unknown target: ${2:-<none>} (expected imu, eeprom or camera)" ;;
         esac ;;
 
     shell)
-        CMD=gs130-shell
-        case "$2" in
-            --help|-help) shell_usage; exit 0 ;;
-        esac
+        CMD="gs130 shell"
+        help_requested "$2" && { shell_usage; exit 0; }
         shift
         parse_config "$@"
         echo "${C_DIM}==================================================${C_OFF}"
@@ -248,37 +345,63 @@ case "$1" in
         echo "  mode=$MODE   size=${WIDTH}x${HEIGHT}   fps=$FPS   odr=${ODR}Hz"
         echo "  type 'help' for commands, 'exit' to quit"
         echo "${C_DIM}==================================================${C_OFF}"
+
         while IFS= read -e -r -p "$PROMPT" line; do
-            [ -n "$line" ] && history -s "$line"   # read -e does not record history by itself
+            [ -n "$line" ] && history -s "$line"   # read -e does not record history itself
+            set -f                                 # no globbing on what the user typed
             set -- $line
+            set +f
+
             [ $# -eq 0 ] && continue
             case "$1" in
                 exit|quit) break ;;
-                help)
-                    echo "gs130 shell  [$PLATFORM / $DEVICE]  mode=$MODE  size=${WIDTH}x${HEIGHT}  fps=$FPS  odr=${ODR}Hz"
-                    echo
-                    echo "commands:"
-                    echo "  help                  show this help"
-                    echo "  imu-info              print the detected IMU model and its details"
-                    echo "  eeprom-info           print the EEPROM calibration model and its details"
-                    echo "  calib-export <dir>    export the calibration as Kalibr YAML into <dir>"
-                    echo "  capture               capture stereo frames and IMU packets"
-                    echo "  exit | quit           leave the shell"
-                    echo
-                    echo "the device config above is locked for this session;"
-                    echo "run 'gs130 shell --help' outside the shell to see how it is set" ;;
-                imu-info)     "$dir/gs130-imu-info" $CFG ;;
-                eeprom-info)  "$dir/gs130-eeprom-info" $CFG ;;
+
+                help) shell_help ;;
+
+                imu-info)
+                    CMD=imu-info
+                    help_requested "$2" && { imu_info_usage; continue; }
+                    "$dir/gs130-imu-info" $CFG ;;
+
+                eeprom-info)
+                    CMD=eeprom-info
+                    help_requested "$2" && { eeprom_info_usage; continue; }
+                    "$dir/gs130-eeprom-info" $CFG ;;
+
                 calib-export)
+                    CMD=calib-export
+                    help_requested "$2" && { calib_export_usage; continue; }
                     if [ -z "$2" ]; then
-                        echo "usage: calib-export <dir>   (try help)"
+                        fail "missing <dir>"
                     else
                         "$dir/gs130-calib-export" "$2" $CFG
                     fi ;;
-                capture)      "$dir/gs130-capture" $CFG ;;
-                *) echo "unknown command: $1 (try help)" ;;
+
+                run)
+                    CMD=run
+                    shift
+                    help_requested "$1" && { run_usage; continue; }
+                    if [ -n "$1" ]; then
+                        fail "takes no arguments (records nothing; see 'rec --help')"
+                        continue
+                    fi
+                    "$dir/gs130-run" $CFG ;;
+
+                rec)
+                    CMD=rec
+                    shift
+                    help_requested "$1" && { rec_usage; continue; }
+                    if parse_rec_args "$@"; then
+                        "$dir/gs130-rec" "$REC_CF" "$REC_CT" "$REC_IF" "$REC_IT" \
+                                         "$REC_O" "$REC_STITCH" $CFG
+                    fi ;;
+
+                *) echo "gs130 shell: unknown command '$1' (try 'help')" >&2 ;;
             esac
         done ;;
 
-    *) usage >&2; exit 1 ;;
+    imu-info|eeprom-info|calib-export|run|rec)
+        die "'$1' is an internal command; it only exists inside 'gs130 shell'" ;;
+
+    *) die "unknown command: $1" ;;
 esac
